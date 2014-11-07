@@ -1,8 +1,6 @@
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
-
-# DisclaimrWeb models
-import disclaimrwebadmin
+import constants
 
 
 class Rule(models.Model):
@@ -52,9 +50,9 @@ class Requirement(models.Model):
     body = models.TextField(_("body-filter"), help_text=_("A regexp, that has to match the body of a mail"), default="^.*$")
 
     action = models.SmallIntegerField(_("action"), help_text=_("What to do, if this requirement is met?"), choices=(
-        (disclaimrwebadmin.REQ_ACTION_ACCEPT, _("Accept rule")),
-        (disclaimrwebadmin.REQ_ACTION_DENY, _("Deny rule"))
-    ), default=disclaimrwebadmin.REQ_ACTION_ACCEPT)
+        (constants.REQ_ACTION_ACCEPT, _("Accept rule")),
+        (constants.REQ_ACTION_DENY, _("Deny rule"))
+    ), default=constants.REQ_ACTION_ACCEPT)
 
     class Meta:
         ordering = ['position']
@@ -129,9 +127,9 @@ class Action(models.Model):
     description = models.TextField(_("description"), help_text=_("The description of this action."), blank=True)
 
     action = models.SmallIntegerField(_("action"), help_text=_("What action should be done?"), choices=(
-        (disclaimrwebadmin.ACTION_ACTION_REPLACETAG, _("Replace a tag in the body with a disclaimer string")),
-        (disclaimrwebadmin.ACTION_ACTION_ADD, _("Add a disclaimer string to the body")),
-    ), default=disclaimrwebadmin.ACTION_ACTION_ADD)
+        (constants.ACTION_ACTION_REPLACETAG, _("Replace a tag in the body with a disclaimer string")),
+        (constants.ACTION_ACTION_ADD, _("Add a disclaimer string to the body")),
+    ), default=constants.ACTION_ACTION_ADD)
 
     only_mime = models.CharField(_("mime type"), max_length=255, help_text=_("Only carry out the action in the given mime "
                                                                              "type"), default="", blank=True)
@@ -176,9 +174,9 @@ class DirectoryServer(models.Model):
     base_dn = models.CharField(_("base-dn"), max_length=255, help_text=_("The LDAP base dn."))
 
     auth = models.SmallIntegerField(_("auth_method"), help_text=_("Authentication method to connect to the server"), choices=(
-        (disclaimrwebadmin.DIR_AUTH_NONE, _("None")),
-        (disclaimrwebadmin.DIR_AUTH_SIMPLE, _("Simple"))
-    ), default=disclaimrwebadmin.DIR_AUTH_NONE)
+        (constants.DIR_AUTH_NONE, _("None")),
+        (constants.DIR_AUTH_SIMPLE, _("Simple"))
+    ), default=constants.DIR_AUTH_NONE)
 
     userdn = models.CharField(_("user-DN"), max_length=255, help_text=_("DN of the user to authenticate with"), blank=True,
                               default="")

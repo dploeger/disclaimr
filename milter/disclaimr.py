@@ -1,24 +1,33 @@
 """ disclaimr - Mail disclaimer server
 """
+import argparse
+import os
 
 import libmilter as lm
-import signal, traceback
+import signal
+import traceback
 import sys
 from string import Template
 import logging
 
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "disclaimrweb.disclaimrweb.settings")
+
+from disclaimrweb.disclaimrwebadmin import models
+
 
 class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
 
-    def __init__(self, opts=0, protos=0):
+    def __init__(self, opt):
 
-        lm.MilterProtocol.__init__(self, opts, protos)
+        lm.MilterProtocol.__init__(self)
         lm.ForkMixin.__init__(self)
 
         self.mail_data = {
             "headers": {},
             "body": ""
         }
+
+        self.options = opt
 
     @lm.noReply
     def connect(self, hostname, family, ip, port, cmd_dict):
@@ -96,8 +105,32 @@ if __name__ == '__main__':
 
     # Argument handling
 
+    parser = argparse.ArgumentParser(description="Disclaimr - Mail disclaimer server. Starts a milter daemon, "
+                                                 "that adds dynamic disclaimers to messages")
+
+    parser.add_argument("-s", "--socket", dest="socket", default="inet:127.0.0.1:5000",
+                        help="Socket to open. IP-Sockets need "
+                             "to be in the form inet:<ip>:<port> [inet:127.0.0.1:5000]")
+
+    parser.add_argument("-q", "--quiet", dest="quiet", action="store_true", help="Be quiet doing things")
+    parser.add_argument("-d", "--debug", dest="debug", action="store_true", help="Enable debug logging")
+
+    options = parser.parse_args()
+
+    if options.quiet and options.debug:
+        parser.error("Cannot specify debug and quiet at the same time.")
+
     # Setup logging
+
+    if options.quiet:
+        logging.basicConfig(level=logging.ERROR)
+    elif options.debug:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
+
+    logging.debug("Starting disclaimr")
 
     # Run Disclaimr
 
-    run_disclaimr_milter()
+    #run_disclaimr_milter(options)
