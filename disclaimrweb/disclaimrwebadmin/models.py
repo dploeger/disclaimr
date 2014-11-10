@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
+import netaddr
 import constants
 
 
@@ -22,12 +23,13 @@ class Requirement(models.Model):
 
     """ A disclaimer requirement.
 
-        This describes various requirements, that need to be set for a disclaimer rule to work
+        This describes various requirements, that need to be set for a disclaimer rule to work. If one requirement is set to
+        deny, the complete rule will be denied (no actions will be carried out).
+
+        One rule has to have at least one requirement to be taken into account during work.
     """
 
     rule = models.ForeignKey(Rule)
-
-    position = models.PositiveSmallIntegerField(_("Position"))
 
     name = models.CharField(_("name"), max_length=255, help_text=_("The name of this requirement."))
 
@@ -45,7 +47,8 @@ class Requirement(models.Model):
     recipient = models.TextField(_("recipient"), help_text=_("A regexp, that has to match the recipient of a mail"),
                                  default="^.*$")
 
-    header = models.TextField(_("header-filter"), help_text=_("A regexp, that has to match all headers of a mail"),
+    header = models.TextField(_("header-filter"), help_text=_("A regexp, that has to match all headers of a mail. The headers "
+                                                              "will be represented in a key: value - format."),
                               default="^.*$")
     body = models.TextField(_("body-filter"), help_text=_("A regexp, that has to match the body of a mail"), default="^.*$")
 
@@ -57,6 +60,10 @@ class Requirement(models.Model):
     class Meta:
         ordering = ['position']
         verbose_name = _("Requirement")
+
+    def get_sender_ip_network(self):
+
+        return netaddr.IPNetwork("%s/%s" % (self.sender_ip, self.sender_ip_cidr))
 
     def __unicode__(self):
 

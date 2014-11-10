@@ -5,7 +5,7 @@ from grappelli.forms import GrappelliSortableHiddenMixin
 from .models import Rule, Requirement, Action, Disclaimer, DirectoryServer, DirectoryServerURL
 
 
-class RequirementInline(GrappelliSortableHiddenMixin, admin.StackedInline):
+class RequirementInline(admin.StackedInline):
 
     model = Requirement
     extra = 0

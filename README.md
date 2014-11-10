@@ -12,8 +12,9 @@
 
 ### Milter
 
-* [python-libmilter](https://github.com/crustymonkey/python-libmilter)
 * [Python 2.7](https://www.python.org)
+* [python-libmilter](https://github.com/crustymonkey/python-libmilter)
+* [python-netaddr](https://github.com/drkjam/netaddr)
 
 ### DisclaimrWeb
 
