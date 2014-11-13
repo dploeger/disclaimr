@@ -1,6 +1,7 @@
 """ disclaimr - Mail disclaimer server
 """
 import argparse
+import email
 import os
 import re
 import django
@@ -38,7 +39,7 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
         lm.ForkMixin.__init__(self)
 
         self.mail_data = {
-            "headers": {},
+            "headers": [],
             "body": ""
         }
 
@@ -53,6 +54,57 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
         self.configuration = configuration
 
         logging.debug("Initialising Milter Fork")
+
+    def do_action(self, mail, action):
+
+        """
+        Apply an action on a mail (optionally recursing through the different mail payloads)
+
+        :param mail: A mail object
+        :param action: The action to carry out
+        :return: The modified mail
+        """
+
+        if mail.is_multipart():
+
+            for payload in mail.get_payload():
+
+                self.do_action(payload, action)
+
+        else:
+
+            text = ""
+
+            if mail.get_content_type() == "text/plain":
+
+                text = action.disclaimer.text
+
+            elif mail.get_content_type() == "text/html":
+
+                if action.disclaimer.html_use_text:
+
+                    text = action.disclaimer.text
+
+                else:
+
+                    text = action.disclaimer.html
+
+            # TODO Optionally try to resolve and fill out parameters
+
+            # Carry out the action
+
+            if action.action == constants.ACTION_ACTION_ADD:
+
+                logging.debug("Adding Disclaimer %s to body" % action.disclaimer.name)
+
+                mail.set_payload("%s\n%s" % (mail.get_payload(), text))
+
+            elif action.action == constants.ACTION_ACTION_REPLACETAG:
+
+                logging.debug("Replacing tag %s with Disclaimer %s" % (action.action_parameters, action.disclaimer.name))
+
+                mail.set_payload(re.sub(action.action_parameters, text, mail.get_payload()))
+
 
     @lm.noReply
     def connect(self, hostname, family, ip, port, cmd_dict):
@@ -92,7 +144,7 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
 
         # Check requirements
 
-        for req in models.Requirement.objects.get(id__in=self.requirements):
+        for req in models.Requirement.objects.filter(id__in=self.requirements):
 
             if not re.match(req.sender, addr):
 
@@ -119,7 +171,7 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
 
         # Check requirements
 
-        for req in models.Requirement.objects.get(id__in=self.requirements):
+        for req in models.Requirement.objects.filter(id__in=self.requirements):
 
             if not re.match(req.recipient, recip):
 
@@ -144,11 +196,22 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
 
         logging.debug("HEADER: %s: %s" % (key, val))
 
+        self.mail_data["headers"].append("%s: %s" % (key, val))
+
+        return lm.CONTINUE
+
+    @lm.noReply
+    def eoh(self, cmd_dict):
+
+        if not self.enabled:
+
+            return lm.CONTINUE
+
         # Check requirements
 
-        for req in models.Requirement.objects.get(id__in=self.requirements):
+        for req in models.Requirement.objects.filter(id__in=self.requirements):
 
-            if not re.match(req.header, "%s: %s" % (key, val)):
+            if not re.match(req.header, "\n".join(self.mail_data["headers"])):
 
                 self.requirements = filter(lambda x: x != req.id, self.requirements)
 
@@ -157,8 +220,6 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
             logging.debug("Couldn't match the header in any requirement. Skipping.")
 
             self.enabled = False
-
-        self.mail_data["headers"][key] = val
 
         return lm.CONTINUE
 
@@ -187,9 +248,9 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
 
         # Check requirements
 
-        for req in models.Requirement.objects.get(id__in=self.requirements):
+        for req in models.Requirement.objects.filter(id__in=self.requirements):
 
-            if not re.match(req.body, self.body):
+            if not re.match(req.body, self.mail_data["body"]):
 
                 self.requirements = filter(lambda x: x != req.id, self.requirements)
 
@@ -199,13 +260,15 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
 
             self.enabled = False
 
+            return lm.CONTINUE
+
         # Filter out denied rules
 
         rules_blacklist = []
 
         rules = []
 
-        for req in models.Requirement.objects.get(id__in=self.requirements):
+        for req in models.Requirement.objects.filter(id__in=self.requirements):
 
             if req.action == constants.REQ_ACTION_DENY:
 
@@ -215,11 +278,15 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
 
                 rules.append(req.rule.id)
 
+        # Transform body into a mime mail to work on it
+
+        mail = email.message_from_string("%s\n%s" % ("\n".join(self.mail_data["headers"]), self.mail_data["body"]))
+
         # Carry out the actions
 
-        for rule in models.Rule.objects.get(id__in=rules):
+        for rule in models.Rule.objects.filter(id__in=rules):
 
-            for action in rule.action_set:
+            for action in rule.action_set.all():
 
                 if not action.enabled:
 
@@ -227,17 +294,35 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
 
                 logging.info("Carrying out action %s of rule %s" % (action.name, rule.name))
 
-                if action == constants.ACTION_ACTION_ADD:
+                self.do_action(mail, action)
 
-                    # Add text to body
+        # Replace the body with the modified one
 
-                    pass
+        # Remove headers
 
-                elif action == constants.ACTION_ACTION_REPLACETAG:
+        mail_keys = mail.keys()
 
-                    # Replace tag
+        content_type_header = ""
 
-                    pass
+        for key in mail_keys:
+
+            # email.message still needs the content type for the as_string-method
+
+            if not key.lower() == "content-type":
+
+                del mail[key]
+
+            else:
+
+                content_type_header = "%s: %s\n" % (key, mail[key])
+
+        new_body = mail.as_string()
+
+        # Now, remove the content-type to have the right body again
+
+        new_body = re.sub(content_type_header, "", new_body)
+
+        self.replBody(new_body)
 
         return lm.CONTINUE
 

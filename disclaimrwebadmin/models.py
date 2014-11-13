@@ -43,14 +43,14 @@ class Requirement(models.Model):
     sender_ip_cidr = models.CharField(_("netmask"), max_length=2, help_text=_("The CIDR-netmask for the sender ip address"),
                                       default="0")
 
-    sender = models.TextField(_("sender"), help_text=_("A regexp, that has to match the sender of a mail."), default="^.*$")
+    sender = models.TextField(_("sender"), help_text=_("A regexp, that has to match the sender of a mail."), default=".*")
     recipient = models.TextField(_("recipient"), help_text=_("A regexp, that has to match the recipient of a mail"),
-                                 default="^.*$")
+                                 default=".*")
 
     header = models.TextField(_("header-filter"), help_text=_("A regexp, that has to match all headers of a mail. The headers "
                                                               "will be represented in a key: value - format."),
-                              default="^.*$")
-    body = models.TextField(_("body-filter"), help_text=_("A regexp, that has to match the body of a mail"), default="^.*$")
+                              default=".*")
+    body = models.TextField(_("body-filter"), help_text=_("A regexp, that has to match the body of a mail"), default=".*")
 
     action = models.SmallIntegerField(_("action"), help_text=_("What to do, if this requirement is met?"), choices=(
         (constants.REQ_ACTION_ACCEPT, _("Accept rule")),

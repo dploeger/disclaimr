@@ -2,7 +2,10 @@
 
 ## Introduction
 
-**Disclaimr** is a [milter daemon](https://www.milter.org/), that dynamically adds mail disclaimers or footers to filtered mails.
+**Disclaimr** is a [milter daemon](https://www.milter.org/), that dynamically adds mail disclaimers or footers to filtered 
+mails. Additionally, it includes a Django-based web administration user interface to easily let non-technical people manage the
+ disclaimers.
+ 
  It can solve the following problems:
 
 * Centrally define company email footers following certain conventions
@@ -24,7 +27,3 @@ server to use it. For optimal performance, though, it's better to run Disclaimr 
 
 ## Administration
 
-Disclaimr uses a Sqlite database for configuration of rules and disclaimers. To make it easier, 
-a simple Django-based web application named Disclaimrweb is provided.
-
-TODO: Make a script to set that up.
