@@ -3,6 +3,7 @@
 import argparse
 import os
 import re
+import django
 
 import libmilter as lm
 import signal
@@ -11,10 +12,14 @@ import sys
 from string import Template
 import logging
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "disclaimrweb.disclaimrweb.settings")
+# Setup Django
 
-from disclaimrweb.disclaimrwebadmin import models
-from disclaimrweb.disclaimrwebadmin import constants
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "disclaimrweb.settings")
+import django
+django.setup()
+
+from disclaimrwebadmin import models
+from disclaimrwebadmin import constants
 
 
 class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
@@ -27,9 +32,9 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
 
     """
 
-    def __init__(self, opt, conf):
+    def __init__(self, opts=0, protos=0):
 
-        lm.MilterProtocol.__init__(self)
+        lm.MilterProtocol.__init__(self, opts, protos)
         lm.ForkMixin.__init__(self)
 
         self.mail_data = {
@@ -39,13 +44,13 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
 
         self.enabled = True
 
-        self.options = opt
+        self.options = options
 
         self.requirements = []
 
         self.actions = []
 
-        self.configuration = conf
+        self.configuration = configuration
 
         logging.debug("Initialising Milter Fork")
 
@@ -58,7 +63,7 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
 
         # Check for IP-requirements
 
-        for sender_ip in self.configuration["ip"]:
+        for sender_ip in self.configuration["sender_ip"]:
 
             if ip in sender_ip["ip"]:
 
@@ -248,9 +253,9 @@ def run_disclaimr_milter():
     # We initialize the factory we want to use (you can choose from an
     # AsyncFactory, ForkFactory or ThreadFactory.  You must use the
     # appropriate mixin classes for your milter for Thread and Fork)
-    f = lm.ForkFactory('inet:127.0.0.1:5000' , DisclaimrMilter , opts)
+    f = lm.ForkFactory(options.socket, DisclaimrMilter, opts)
 
-    def signal_handler(num , frame):
+    def signal_handler(num, frame):
         f.close()
         sys.exit(0)
 
@@ -316,9 +321,9 @@ if __name__ == '__main__':
 
             # Check, if all associated actions are enabled
 
-            enabled_actions = len(requirement.rule.action_set)
+            enabled_actions = requirement.rule.action_set.count()
 
-            for test_action in requirement.rule.action_set:
+            for test_action in requirement.rule.action_set.all():
 
                 if not test_action.enabled:
 
@@ -337,4 +342,4 @@ if __name__ == '__main__':
 
     # Run Disclaimr
 
-    #run_disclaimr_milter(options, configuration)
+    run_disclaimr_milter()

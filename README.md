@@ -10,16 +10,12 @@
 
 ## Requirements
 
-### Milter
-
 * [Python 2.7](https://www.python.org)
 * [python-libmilter](https://github.com/crustymonkey/python-libmilter)
 * [python-netaddr](https://github.com/drkjam/netaddr)
-
-### DisclaimrWeb
-
 * [Django 1.7](https://www.djangoproject.com/)
 * [Grappelli](http://grappelliproject.com/)
+* [mysqldb](https://github.com/farcepest/MySQLdb1) (or another database backend for Python. Disclaimr doesn't support Sqlite)
 
 ## Installation
 

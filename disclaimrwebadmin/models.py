@@ -58,7 +58,6 @@ class Requirement(models.Model):
     ), default=constants.REQ_ACTION_ACCEPT)
 
     class Meta:
-        ordering = ['position']
         verbose_name = _("Requirement")
 
     def get_sender_ip_network(self):
