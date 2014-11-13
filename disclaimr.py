@@ -2,9 +2,9 @@
 """
 import argparse
 import email
+from lxml import etree
 import os
 import re
-import django
 
 import libmilter as lm
 import signal
@@ -75,35 +75,55 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
 
             text = ""
 
-            if mail.get_content_type() == "text/plain":
+            # TODO Optionally try to resolve and fill out parameters
+
+            # Carry out the action
+
+            logging.debug("Adding Disclaimer %s to body" % action.disclaimer.name)
+
+            if mail.get_content_type().lower() == "text/plain":
 
                 text = action.disclaimer.text
 
-            elif mail.get_content_type() == "text/html":
+                if action.action == constants.ACTION_ACTION_ADD:
+
+                    # text/plain can simply be added
+
+                    mail.set_payload("%s\n%s" % (mail.get_payload(), action.disclaimer.text))
+
+                elif action.action == constants.ACTION_ACTION_REPLACETAG:
+
+                    # TODO
+
+                    pass
+
+            elif mail.get_content_type().lower() == "text/html":
+
+                # text/html has to been put before the closing body-tag, so parse the text
+
+                html_part = etree.HTML(mail.get_payload())
 
                 if action.disclaimer.html_use_text:
 
-                    text = action.disclaimer.text
+                    text = "<p>%s</p>" % action.disclaimer.text
 
                 else:
 
                     text = action.disclaimer.html
 
-            # TODO Optionally try to resolve and fill out parameters
+                add_part = etree.HTML(text)
 
-            # Carry out the action
+                if action.action == constants.ACTION_ACTION_ADD:
 
-            if action.action == constants.ACTION_ACTION_ADD:
+                    html_part.xpath("body")[0].append(add_part.xpath("body")[0].getchildren()[0])
 
-                logging.debug("Adding Disclaimer %s to body" % action.disclaimer.name)
+                    mail.set_payload(etree.tostring(html_part, pretty_print=True, method="html"))
 
-                mail.set_payload("%s\n%s" % (mail.get_payload(), text))
+                elif action.action == constants.ACTION_ACTION_REPLACETAG:
 
-            elif action.action == constants.ACTION_ACTION_REPLACETAG:
+                    # TODO
 
-                logging.debug("Replacing tag %s with Disclaimer %s" % (action.action_parameters, action.disclaimer.name))
-
-                mail.set_payload(re.sub(action.action_parameters, text, mail.get_payload()))
+                    pass
 
 
     @lm.noReply
