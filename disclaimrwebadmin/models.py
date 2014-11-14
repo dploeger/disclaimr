@@ -192,9 +192,9 @@ class DirectoryServer(models.Model):
                                 default="")
 
     search_query = models.TextField(_("search query"), help_text=_("A search query to run against the directory server to "
-                                                                   "fetch the ldap object when resolving. {email} will be "
+                                                                   "fetch the ldap object when resolving. %s will be "
                                                                    "replaced when resolving."),
-                                    default="mail=${email}")
+                                    default="mail=%s")
 
     def __unicode__(self):
 

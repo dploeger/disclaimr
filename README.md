@@ -20,6 +20,7 @@ It has the following features:
 * [python-netaddr](https://github.com/drkjam/netaddr)
 * [Django 1.7](https://www.djangoproject.com/)
 * [Grappelli](http://grappelliproject.com/)
+* [Python-LDAP](http://www.python-ldap.org/)
 * [mysqldb](https://github.com/farcepest/MySQLdb1) (or another database backend for Python. Disclaimr doesn't support Sqlite)
 
 ## Installation
@@ -125,7 +126,7 @@ the actions will be carried out.
 
 * Action: What should be done with the mail body. Currently these actions are supported:
   * Add the disclaimer to the body
-  * Replace the string in the field "Action parameters" with the disclaimer
+  * Replace the regexp in the field "Action parameters" with the disclaimer
 * Mime type: Use this action only for bodies of this mime type
 * Action parameters: Additional parameters for the selected action
 * Resolve the sender: Use the resolver feature and try to resolve the "MAIL FROM"-envelope
