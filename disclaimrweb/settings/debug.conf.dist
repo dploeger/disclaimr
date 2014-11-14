@@ -1,0 +1,7 @@
+# Rename this file to .conf to enable debugging
+
+# SECURITY WARNING: don't run with debug turned on in production!
+
+DEBUG = True
+
+TEMPLATE_DEBUG = True
