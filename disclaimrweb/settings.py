@@ -14,7 +14,7 @@ import os
 
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["0.0.0.0/0"]
 
 # Application definition
 
