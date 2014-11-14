@@ -88,7 +88,7 @@ class Disclaimer(models.Model):
     text = models.TextField(_("text-part"), help_text=_("A plain text disclaimer"), default="", blank=True)
 
     text_use_template = models.BooleanField(_("use template tags"), help_text=_("Use template tags in the text part. Available "
-                                                                                "tags are: %(sender)s, %(recipient)s and all "
+                                                                                "tags are: {sender}, {recipient} and all "
                                                                                 "attributes, that are provided by resolving the "
                                                                                 "sender in a directory server"), default=True)
 
@@ -99,9 +99,9 @@ class Disclaimer(models.Model):
                                                         "used."), default="", blank=True)
 
     html_use_template = models.BooleanField(_("use template tags"), help_text=_("Use template tags in the html part. Available "
-                                                                                "tags are: ${sender}, ${recipient} and all "
+                                                                                "tags are: {sender}, {recipient} and all "
                                                                                 "attributes, that are provided by resolving the "
-                                                                                "sender in a directory server enclosed in ${}"),
+                                                                                "sender in a directory server"),
                                             default=True)
 
     template_fail = models.BooleanField(_("fail if template doesn't exist"), help_text=_("Don't use this disclaimer (and stop "
@@ -141,7 +141,8 @@ class Action(models.Model):
                                                                              "type"), default="", blank=True)
 
     action_parameters = models.TextField(_("action parameters"), help_text=_("Parameters for the action (see the action "
-                                                                             "documentation for details"), default="", blank=True)
+                                                                             "documentation for details)"), default="",
+                                         blank=True)
 
     resolve_sender = models.BooleanField(_("resolve the sender"), help_text=_("Resolve the sender by querying a directory "
                                                                               "server and provide data for the template tags "
@@ -179,7 +180,7 @@ class DirectoryServer(models.Model):
 
     base_dn = models.CharField(_("base-dn"), max_length=255, help_text=_("The LDAP base dn."))
 
-    auth = models.SmallIntegerField(_("auth_method"), help_text=_("Authentication method to connect to the server"), choices=(
+    auth = models.SmallIntegerField(_("auth-method"), help_text=_("Authentication method to connect to the server"), choices=(
         (constants.DIR_AUTH_NONE, _("None")),
         (constants.DIR_AUTH_SIMPLE, _("Simple"))
     ), default=constants.DIR_AUTH_NONE)
@@ -191,7 +192,7 @@ class DirectoryServer(models.Model):
                                 default="")
 
     search_query = models.TextField(_("search query"), help_text=_("A search query to run against the directory server to "
-                                                                   "fetch the ldap object when resolving. ${email} will be "
+                                                                   "fetch the ldap object when resolving. {email} will be "
                                                                    "replaced when resolving."),
                                     default="mail=${email}")
 
