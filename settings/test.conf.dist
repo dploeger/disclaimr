@@ -1,0 +1,8 @@
+# Copy this file to .conf if you need to execute the test suites to enable the testing database
+
+TEST = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': 'test.db',
+    }
+}
