@@ -116,57 +116,6 @@ class Disclaimer(models.Model):
         return self.name
 
 
-class Action(models.Model):
-
-    """ A disclaimer action.
-
-        This describes, what should be done with the mail meeting the requirements in a rule
-    """
-
-    rule = models.ForeignKey(Rule)
-    position = models.PositiveSmallIntegerField(_("Position"))
-
-    name = models.CharField(_("name"), max_length=255, help_text=_("The name of this action."))
-
-    enabled = models.BooleanField(_("enabled"), default=True, help_text=_("Is this action enabled?"))
-
-    description = models.TextField(_("description"), help_text=_("The description of this action."), blank=True)
-
-    action = models.SmallIntegerField(_("action"), help_text=_("What action should be done?"), choices=(
-        (constants.ACTION_ACTION_REPLACETAG, _("Replace a tag in the body with a disclaimer string")),
-        (constants.ACTION_ACTION_ADD, _("Add a disclaimer string to the body")),
-    ), default=constants.ACTION_ACTION_ADD)
-
-    only_mime = models.CharField(_("mime type"), max_length=255, help_text=_("Only carry out the action in the given mime "
-                                                                             "type"), default="", blank=True)
-
-    action_parameters = models.TextField(_("action parameters"), help_text=_("Parameters for the action (see the action "
-                                                                             "documentation for details)"), default="",
-                                         blank=True)
-
-    resolve_sender = models.BooleanField(_("resolve the sender"), help_text=_("Resolve the sender by querying a directory "
-                                                                              "server and provide data for the template tags "
-                                                                              "inside a disclaimer"), default=False)
-
-    resolve_sender_fail = models.BooleanField(_("fail when unable to resolve sender"), help_text=_("Stop the action if the "
-                                                                                                   "sender cannot be "
-                                                                                                   "resolved."), default=False)
-
-    disclaimer = models.ForeignKey(Disclaimer)
-
-    class Meta:
-        ordering = ['position']
-        verbose_name = _("Action")
-
-    def __unicode__(self):
-
-        if not self.enabled:
-
-            return _("%s (disabled)" % self.name)
-
-        return self.name
-
-
 class DirectoryServer(models.Model):
 
     """ A directory server. This is used, if an action needs to resolve the user by the mail's recipient or sender
@@ -225,3 +174,56 @@ class DirectoryServerURL(models.Model):
     def __unicode__(self):
 
         return self.url
+
+
+class Action(models.Model):
+
+    """ A disclaimer action.
+
+        This describes, what should be done with the mail meeting the requirements in a rule
+    """
+
+    rule = models.ForeignKey(Rule)
+    position = models.PositiveSmallIntegerField(_("Position"))
+
+    name = models.CharField(_("name"), max_length=255, help_text=_("The name of this action."))
+
+    enabled = models.BooleanField(_("enabled"), default=True, help_text=_("Is this action enabled?"))
+
+    description = models.TextField(_("description"), help_text=_("The description of this action."), blank=True)
+
+    action = models.SmallIntegerField(_("action"), help_text=_("What action should be done?"), choices=(
+        (constants.ACTION_ACTION_REPLACETAG, _("Replace a tag in the body with a disclaimer string")),
+        (constants.ACTION_ACTION_ADD, _("Add a disclaimer string to the body")),
+    ), default=constants.ACTION_ACTION_ADD)
+
+    only_mime = models.CharField(_("mime type"), max_length=255, help_text=_("Only carry out the action in the given mime "
+                                                                             "type"), default="", blank=True)
+
+    action_parameters = models.TextField(_("action parameters"), help_text=_("Parameters for the action (see the action "
+                                                                             "documentation for details)"), default="",
+                                         blank=True)
+
+    resolve_sender = models.BooleanField(_("resolve the sender"), help_text=_("Resolve the sender by querying a directory "
+                                                                              "server and provide data for the template tags "
+                                                                              "inside a disclaimer"), default=False)
+
+    resolve_sender_fail = models.BooleanField(_("fail when unable to resolve sender"), help_text=_("Stop the action if the "
+                                                                                                   "sender cannot be "
+                                                                                                   "resolved."), default=False)
+
+    disclaimer = models.ForeignKey(Disclaimer, help_text=_("Which disclaimer to use"))
+
+    directory_servers = models.ManyToManyField(DirectoryServer, help_text=_("Which directory server(s) to use."))
+
+    class Meta:
+        ordering = ['position']
+        verbose_name = _("Action")
+
+    def __unicode__(self):
+
+        if not self.enabled:
+
+            return _("%s (disabled)" % self.name)
+
+        return self.name

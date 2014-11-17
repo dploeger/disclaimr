@@ -317,7 +317,7 @@ class MilterHelper(object):
 
                     resolved_successfully = False
 
-                    for directory_server in models.DirectoryServer.objects.all():
+                    for directory_server in action.directory_servers.all():
 
                         if not directory_server.enabled:
 

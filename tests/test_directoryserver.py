@@ -41,18 +41,6 @@ class DirectoryServerTestCase(TestCase):
         self.rule = models.Rule()
         self.rule.save()
 
-        # Build action
-
-        action = models.Action()
-
-        action.action = constants.ACTION_ACTION_ADD
-        action.disclaimer = disclaimer
-        action.rule = self.rule
-        action.position = 0
-        action.resolve_sender = True
-
-        action.save()
-
         # Build requirement
 
         requirement = models.Requirement()
@@ -90,6 +78,22 @@ class DirectoryServerTestCase(TestCase):
         directory_server_url.position = 0
 
         directory_server_url.save()
+
+        # Build action
+
+        action = models.Action()
+
+        action.action = constants.ACTION_ACTION_ADD
+        action.disclaimer = disclaimer
+        action.rule = self.rule
+        action.position = 0
+        action.resolve_sender = True
+
+        action.save()
+
+        action.directory_servers = [self.directory_server]
+
+        action.save()
 
         # We will not check against certificates here
 
