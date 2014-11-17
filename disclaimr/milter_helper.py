@@ -319,6 +319,10 @@ class MilterHelper(object):
 
                     for directory_server in models.DirectoryServer.objects.all():
 
+                        if not directory_server.enabled:
+
+                            continue
+
                         for url in directory_server.directoryserverurl_set.all():
 
                             logging.debug("Trying url %s" % url.url)
