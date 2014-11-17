@@ -27,14 +27,15 @@ It has the following features:
 
 ### Python packages
 
-Install Disclaimr using pip or easy_install with the package disclaimr:
+Install the requirements of Disclaimr (for example using pip):
 
-    pip install disclaimr
+    pip install python-libmilter netaddr django django-grappelli python-ldap
 
-That will also install all most of the requirements noticed above. You still need to install the python package for the 
-database backend you'd like to use. For example, to use mysqldb run:
+You still need to install the python package for the database backend you'd like to use. For example, to use mysqldb run:
 
     pip install mysql-python
+
+Download the latest Disclaimr release and put it in an accessible path.
 
 ### Database setup
 
@@ -65,6 +66,9 @@ Disclaimr will run on localhost, Port 5000 per default. You can specify another 
     python disclaimr.py -s <socket-option>
 
 For example "inet:localhost:6000" to use Port 6000 instead of 5000.
+
+If you'd like to use the resolver feature with an SSL-enabled LDAP-server, that has no proper certificate, you'll have to add
+the "--ignore-cert" option to the daemon.
 
 Run disclaimr.py with --help for more information.
 
