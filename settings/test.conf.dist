@@ -1,8 +1,52 @@
-# Copy this file to .conf if you need to execute the test suites to enable the testing database
+# Copy this file to .conf and modify it if you need to execute the test suites to enable the testing database
+
+# Testing database
 
 TEST = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': 'test.db',
     }
+}
+
+# Enable directory server test?
+
+TEST_DIRECTORY_SERVER_ENABLE = False
+
+# LDAP-settings for directory server test
+
+TEST_DIRECTORY_SERVER = {
+
+    # URL for the server
+
+    "url": "",
+
+    # Base DN
+
+    "base_dn": "",
+
+    # User DN to log in (if not set, no authentication will be tried)
+
+    "user_dn": "",
+
+    # Password to log in
+
+    "password": "",
+
+    # Query for mail address
+
+    "query": "",
+
+    # Address to search for (used as MAIL FROM-envelope)
+
+    "address": "",
+
+    # Field to include in test-disclaimer
+
+    "field": "",
+
+    # Value of that field in the directory server
+
+    "value": ""
+
 }
