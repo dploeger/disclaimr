@@ -9,6 +9,8 @@ TEST = {
     }
 }
 
+# Directory Server
+
 # Enable directory server test?
 
 TEST_DIRECTORY_SERVER_ENABLE = False
@@ -48,5 +50,49 @@ TEST_DIRECTORY_SERVER = {
     # Value of that field in the directory server
 
     "value": ""
+
+}
+
+# Performance Measuring
+
+# Enable the performance test?
+
+TEST_PERFORMANCE_ENABLE = False
+
+# Performance test configuration
+
+TEST_PERFORMANCE = {
+
+    # SMTP-Server
+
+    "smtp_server": "",
+
+    # Username for authentication (if empty, no authentication will be used)
+
+    "username": "",
+
+    # Password for authentication
+
+    "password": "",
+
+    # Mailblob (including headers) to use (Please not, that you need to use \r\n as line separators!)
+
+    "message": "",
+
+    # MAIL FROM envelope
+
+    "sender": "",
+
+    # RCPT TO envelope
+
+    "recipient": "",
+
+    # Number of sends
+
+    "sends": 1000,
+
+    # Test timeout. If the test lasts longer than this amount of seconds, it fails.
+
+    "timeout": 0
 
 }

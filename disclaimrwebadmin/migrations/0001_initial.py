@@ -41,7 +41,7 @@ class Migration(migrations.Migration):
                 ('auth', models.SmallIntegerField(default=0, help_text='Authentication method to connect to the server', verbose_name='auth-method', choices=[(0, 'None'), (1, 'Simple')])),
                 ('userdn', models.CharField(default=b'', help_text='DN of the user to authenticate with', max_length=255, verbose_name='user-DN', blank=True)),
                 ('password', models.CharField(default=b'', help_text='Password to authenticate with', max_length=255, verbose_name='password', blank=True)),
-                ('search_query', models.TextField(default=b'mail=${email}', help_text='A search query to run against the directory server to fetch the ldap object when resolving. {email} will be replaced when resolving.', verbose_name='search query')),
+                ('search_query', models.TextField(default=b'mail=%s', help_text='A search query to run against the directory server to fetch the ldap object when resolving. %s will be replaced when resolving.', verbose_name='search query')),
             ],
             options={
             },
@@ -117,8 +117,14 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='action',
+            name='directory_servers',
+            field=models.ManyToManyField(help_text='Which directory server(s) to use.', to='disclaimrwebadmin.DirectoryServer'),
+            preserve_default=True,
+        ),
+        migrations.AddField(
+            model_name='action',
             name='disclaimer',
-            field=models.ForeignKey(to='disclaimrwebadmin.Disclaimer'),
+            field=models.ForeignKey(help_text='Which disclaimer to use', to='disclaimrwebadmin.Disclaimer'),
             preserve_default=True,
         ),
         migrations.AddField(
