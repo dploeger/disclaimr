@@ -19,7 +19,8 @@ class MilterHelper(object):
 
         The configuration dictionary currently has to hold the following keys:
 
-        sender_ip: A list of dictionaries with the ip-sender requirements and the requirement id
+        sender_ip: A list of dictionaries with the ip-sender requirements and
+                the requirement id
 
         :param configuration: A configuration dictionary
         :return:
@@ -84,11 +85,14 @@ class MilterHelper(object):
 
             if not re.match(req.sender, addr):
 
-                self.requirements = filter(lambda x: x != req.id, self.requirements)
+                self.requirements = filter(
+                    lambda x: x != req.id, self.requirements
+                )
 
         if len(self.requirements) == 0:
 
-            logging.debug("Couldn't match the sender address in any requirement. Skipping.")
+            logging.debug("Couldn't match the sender address in any "
+                          "requirement. Skipping.")
 
             self.enabled = False
 
@@ -108,11 +112,14 @@ class MilterHelper(object):
 
             if not re.match(req.recipient, recip):
 
-                self.requirements = filter(lambda x: x != req.id, self.requirements)
+                self.requirements = filter(
+                    lambda x: x != req.id, self.requirements
+                )
 
         if len(self.requirements) == 0:
 
-            logging.debug("Couldn't match the recipient address in any requirement. Skipping.")
+            logging.debug("Couldn't match the recipient address in any "
+                          "requirement. Skipping.")
 
             self.enabled = False
 
@@ -143,11 +150,14 @@ class MilterHelper(object):
 
             if not re.match(req.header, "\n".join(self.mail_data["headers"])):
 
-                self.requirements = filter(lambda x: x != req.id, self.requirements)
+                self.requirements = filter(
+                    lambda x: x != req.id, self.requirements
+                )
 
         if len(self.requirements) == 0:
 
-            logging.debug("Couldn't match the header in any requirement. Skipping.")
+            logging.debug("Couldn't match the header in any "
+                          "requirement. Skipping.")
 
             self.enabled = False
 
@@ -167,7 +177,8 @@ class MilterHelper(object):
 
         """ Called when all body chunks have been received
 
-        Returns a list of dictionaries with modification tasks. Currently supported keys:
+        Returns a list of dictionaries with modification tasks.
+        Currently supported keys:
 
         "repl_body": Replace the body with the value
 
@@ -181,11 +192,14 @@ class MilterHelper(object):
 
             if not re.match(req.body, self.mail_data["body"]):
 
-                self.requirements = filter(lambda x: x != req.id, self.requirements)
+                self.requirements = filter(
+                    lambda x: x != req.id, self.requirements
+                )
 
         if len(self.requirements) == 0:
 
-            logging.debug("Couldn't match the body in any requirement. Skipping.")
+            logging.debug("Couldn't match the body in any "
+                          "requirement. Skipping.")
 
             self.enabled = False
 
@@ -203,13 +217,19 @@ class MilterHelper(object):
 
                 rules_blacklist.append(req.rule.id)
 
-            elif req.rule.id not in rules_blacklist and req.rule.id not in rules:
+            elif req.rule.id not in rules_blacklist\
+                    and req.rule.id not in rules:
 
                 rules.append(req.rule.id)
 
         # Transform body into a mime mail to work on it
 
-        mail = email.message_from_string("%s\n%s" % ("\n".join(self.mail_data["headers"]), self.mail_data["body"]))
+        mail = email.message_from_string(
+            "%s\n%s" % (
+                "\n".join(self.mail_data["headers"]),
+                self.mail_data["body"]
+            )
+        )
 
         # Carry out the actions
 
@@ -221,7 +241,10 @@ class MilterHelper(object):
 
                     continue
 
-                logging.info("Carrying out action %s of rule %s" % (action.name, rule.name))
+                logging.info("Carrying out action %s of rule %s" % (
+                    action.name,
+                    rule.name
+                ))
 
                 self.do_action(mail, action)
 
@@ -235,7 +258,8 @@ class MilterHelper(object):
 
         for key in mail_keys:
 
-            # email.message still needs the content type for the as_string-method
+            # email.message still needs the content type for the
+            # as_string-method
 
             if not key.lower() == "content-type":
 
@@ -257,8 +281,8 @@ class MilterHelper(object):
 
     def do_action(self, mail, action):
 
-        """
-        Apply an action on a mail (optionally recursing through the different mail payloads)
+        """ Apply an action on a mail (optionally recursing through the
+            different mail payloads)
 
         :param mail: A mail object
         :param action: The action to carry out
@@ -273,7 +297,9 @@ class MilterHelper(object):
 
         else:
 
-            logging.debug("Got part of content-type %s" % mail.get_content_type())
+            logging.debug(
+                "Got part of content-type %s" % mail.get_content_type()
+            )
 
             # Set disclaimer text
 
@@ -287,7 +313,10 @@ class MilterHelper(object):
 
             elif action.disclaimer.html_use_text:
 
-                text = ("<p>%s</p>" % action.disclaimer.text).encode("utf-8", "replace")
+                text = ("<p>%s</p>" % action.disclaimer.text).encode(
+                    "utf-8",
+                    "replace"
+                )
 
                 do_replace = action.disclaimer.text_use_template
 
@@ -326,7 +355,9 @@ class MilterHelper(object):
 
                         # The query we need to run against the directory server
 
-                        query = directory_server.search_query % self.mail_data["envelope_from"]
+                        query = directory_server.search_query % (
+                            self.mail_data["envelope_from"],
+                        )
 
                         result = None
 
@@ -338,33 +369,49 @@ class MilterHelper(object):
 
                         if result is None:
 
-                            for url in directory_server.directoryserverurl_set.all():
+                            urls = directory_server.directoryserverurl_set.all()
+
+                            for url in urls:
 
                                 logging.debug("Trying url %s" % url.url)
 
                                 conn = ldap.initialize(url.url)
 
-                                if directory_server.auth == constants.DIR_AUTH_SIMPLE:
+                                if directory_server.auth == \
+                                        constants.DIR_AUTH_SIMPLE:
 
                                     try:
 
-                                        conn.simple_bind_s(directory_server.userdn, directory_server.password)
+                                        conn.simple_bind_s(
+                                            directory_server.userdn,
+                                            directory_server.password
+                                        )
 
                                     except ldap.SERVER_DOWN:
 
                                         # Cannot reach server. Skip.
 
-                                        logging.warn("Cannot reach server %s. Skipping." % url)
+                                        logging.warn(
+                                            "Cannot reach server %s. "
+                                            "Skipping." % url
+                                        )
 
                                         continue
 
-                                    except (ldap.INVALID_CREDENTIALS, ldap.INVALID_DN_SYNTAX):
+                                    except (
+                                        ldap.INVALID_CREDENTIALS,
+                                        ldap.INVALID_DN_SYNTAX
+                                    ):
 
                                         # Cannot authenticate. Skip.
 
-                                        logging.warn("Cannot authenticate to directory server %s with dn %s. Skipping." % (
-                                            url,
-                                            directory_server.userdn)
+                                        logging.warn(
+                                            "Cannot authenticate to directory "
+                                            "server %s with dn %s. "
+                                            "Skipping." % (
+                                                url,
+                                                directory_server.userdn
+                                            )
                                         )
 
                                         continue
@@ -381,7 +428,8 @@ class MilterHelper(object):
 
                                     # Cannot reach server. Skip.
 
-                                    logging.warn("Cannot reach server %s. Skipping." % url)
+                                    logging.warn("Cannot reach server %s. "
+                                                 "Skipping." % url)
 
                                     continue
 
@@ -389,7 +437,9 @@ class MilterHelper(object):
 
                                     # Cannot authenticate as guest. Skip.
 
-                                    logging.warn("Cannot authenticate to directory server %s as guest. Skipping." % url)
+                                    logging.warn("Cannot authenticate to "
+                                                 "directory server %s as "
+                                                 "guest. Skipping." % url)
 
                                     continue
 
@@ -397,16 +447,28 @@ class MilterHelper(object):
 
                                     if action.resolve_sender_fail:
 
-                                        logging.warn("Cannot resolve email %s. Skipping" % self.mail_data["envelope_from"])
+                                        logging.warn(
+                                            "Cannot resolve email %s. "
+                                            "Skipping" % (
+                                                self.mail_data["envelope_from"],
+                                            )
+                                        )
 
                                         return
 
-                                    logging.info("Cannot resolve email %s" % self.mail_data["envelope_from"])
+                                    logging.info(
+                                        "Cannot resolve email %s" % (
+                                            self.mail_data["envelope_from"],
+                                        )
+                                    )
 
                                 elif len(result) > 1:
 
-                                    logging.warn("Multiple results found for email %s. Using the first one." %
-                                                 self.mail_data["envelope_from"])
+                                    logging.warn(
+                                        "Multiple results found for email %s. "
+                                        "Using the first one." %
+                                        self.mail_data["envelope_from"]
+                                    )
 
                                 # Flatten result into replacement dict
 
@@ -416,7 +478,11 @@ class MilterHelper(object):
 
                                 if directory_server.enable_cache:
 
-                                    QueryCache.set(directory_server, query, result)
+                                    QueryCache.set(
+                                        directory_server,
+                                        query,
+                                        result
+                                    )
 
                                 resolved_successfully = True
 
@@ -424,11 +490,16 @@ class MilterHelper(object):
 
                             for key in result[0][1].iterkeys():
 
-                                replacements["resolver"][key.lower()] = ",".join(result[0][1][key])
+                                replacements["resolver"][
+                                    key.lower()
+                                ] = ",".join(result[0][1][key])
 
                     if not resolved_successfully and action.resolve_sender_fail:
 
-                        logging.warn("Cannot resolve email %s. Skipping" % self.mail_data["envelope_from"])
+                        logging.warn(
+                            "Cannot resolve email %s. "
+                            "Skipping" % self.mail_data["envelope_from"]
+                        )
 
                         return
 
@@ -481,7 +552,8 @@ class MilterHelper(object):
 
                             # We cannot resolve the key. Fail.
 
-                            logging.warn("Cannot resolve key %s. Skipping" % key)
+                            logging.warn("Cannot resolve key %s. "
+                                         "Skipping" % key)
 
                             return
 
@@ -501,7 +573,8 @@ class MilterHelper(object):
 
                             # We cannot resolve the key. Fail.
 
-                            logging.warn("Cannot resolve key %s. Skipping" % key)
+                            logging.warn("Cannot resolve key %s. "
+                                         "Skipping" % key)
 
                             return
 
@@ -523,7 +596,9 @@ class MilterHelper(object):
 
             # Carry out the action
 
-            logging.debug("Adding Disclaimer %s to body" % action.disclaimer.name)
+            logging.debug(
+                "Adding Disclaimer %s to body" % action.disclaimer.name
+            )
 
             if mail.get_content_type().lower() == "text/plain":
 
@@ -537,11 +612,18 @@ class MilterHelper(object):
 
                     # text/plain can simply be replaced
 
-                    mail.set_payload(re.sub(action.action_parameters, text, mail.get_payload()))
+                    mail.set_payload(
+                        re.sub(
+                            action.action_parameters,
+                            text,
+                            mail.get_payload()
+                        )
+                    )
 
             elif mail.get_content_type().lower() == "text/html":
 
-                # text/html has to been put before the closing body-tag, so parse the text
+                # text/html has to been put before the closing body-tag,
+                # so parse the text
 
                 html_part = etree.HTML(mail.get_payload())
 
@@ -553,19 +635,37 @@ class MilterHelper(object):
 
                         # Add the new part inside the existing body-tag
 
-                        html_part.xpath("body")[0].append(disclaimer_part.xpath("body")[0].getchildren()[0])
+                        html_part.xpath("body")[0].append(
+                            disclaimer_part.xpath("body")[0].getchildren()[0]
+                        )
 
                     else:
 
                         # No body found. Just add the new part
 
-                        html_part.append(disclaimer_part.xpath("body")[0].getchildren()[0])
+                        html_part.append(
+                            disclaimer_part.xpath("body")[0].getchildren()[0]
+                        )
 
-                    mail.set_payload(etree.tostring(html_part, pretty_print=True, method="html"))
+                    mail.set_payload(
+                        etree.tostring(
+                            html_part,
+                            pretty_print=True,
+                            method="html"
+                        )
+                    )
 
                 elif action.action == constants.ACTION_ACTION_REPLACETAG:
 
-                    # For replacing, we'll just replace tag in the plain html string with the disclaimer html string
+                    # For replacing, we'll just replace tag in the plain
+                    # html string with the disclaimer html string
 
-                    mail.set_payload(re.sub(action.action_parameters, etree.tostring(disclaimer_part.xpath("body")[
-                        0].getchildren()[0]), mail.get_payload()))
+                    mail.set_payload(
+                        re.sub(
+                            action.action_parameters,
+                            etree.tostring(
+                                disclaimer_part.xpath("body")[
+                                    0
+                                ].getchildren()[0]), mail.get_payload()
+                        )
+                    )

@@ -13,7 +13,8 @@ class DisclaimerTestCase(TestCase):
 
     def setUp(self):
 
-        """ A basic setup with a simple disclaimer, no directory servers, a basic rule and a basic action
+        """ A basic setup with a simple disclaimer, no directory servers,
+            a basic rule and a basic action
         """
 
         self.test_text = "Testmail"
@@ -58,13 +59,17 @@ class DisclaimerTestCase(TestCase):
 
         # The requirement should basically be enabled
 
-        self.assertTrue(helper.enabled, "Helper wasn't enabled after initialization.")
+        self.assertTrue(
+            helper.enabled,
+            "Helper wasn't enabled after initialization."
+        )
 
         return helper
 
     def tool_run_real_test(self, header=None):
 
-        """ Runs the test using the milter helper and returns the action dictionary of eob
+        """ Runs the test using the milter helper and returns the
+            action dictionary of eob
 
         :return: the action dictionary of eob()
         """
@@ -88,17 +93,22 @@ class DisclaimerTestCase(TestCase):
 
     def test_basic_add(self):
 
-        """ The disclaimer will simply be added to the testmail. Check the returned body
+        """ The disclaimer will simply be added to the testmail.
+            Check the returned body
         """
 
         returned = self.tool_run_real_test()
 
-        self.assertEqual(returned[0]["repl_body"], "\n%s\n%s" % (self.test_text, self.disclaimer.text),
-                         "Body was unexpectedly modified to %s" % returned[0]["repl_body"])
+        self.assertEqual(
+            returned[0]["repl_body"],
+            "\n%s\n%s" % (self.test_text, self.disclaimer.text),
+            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+        )
 
     def test_disabled_action(self):
 
-        """ If we disable the only action, we should get an empty action dictionary back
+        """ If we disable the only action, we should get an empty action
+            dictionary back
 
         FIXME Coverage problem
         """
@@ -109,11 +119,15 @@ class DisclaimerTestCase(TestCase):
 
         returned = self.tool_run_real_test()
 
-        self.assertIsNone(returned, "We got an action dictionary back! %s" % returned)
+        self.assertIsNone(
+            returned,
+            "We got an action dictionary back! %s" % returned
+        )
 
     def test_basic_replace(self):
 
-        """ Set the action to replace the disclaimer and not add it. Check the returned body
+        """ Set the action to replace the disclaimer and not add it. Check the
+            returned body
         """
 
         self.test_text = "Testmail #DISCLAIMER#"
@@ -125,12 +139,16 @@ class DisclaimerTestCase(TestCase):
 
         returned = self.tool_run_real_test()
 
-        self.assertEqual(returned[0]["repl_body"], "\nTestmail %s" % self.disclaimer.text,
-                         "Body was unexpectedly modified to %s" % returned[0]["repl_body"])
+        self.assertEqual(
+            returned[0]["repl_body"],
+            "\nTestmail %s" % self.disclaimer.text,
+            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+        )
 
     def test_replacements_add(self):
 
-        """ Test the replacement feature of sender, recipient and header replacement [add mode]
+        """ Test the replacement feature of sender, recipient and header
+            replacement [add mode]
         """
 
         self.disclaimer.text = "{sender}|{recipient}|{header[\"Test\"]}"
@@ -140,12 +158,20 @@ class DisclaimerTestCase(TestCase):
 
         returned = self.tool_run_real_test({"Test": "Test"})
 
-        self.assertEqual(returned[0]["repl_body"], "\n%s\n%s|%s|Test" % (self.test_text, self.test_address, self.test_address),
-                         "Body was unexpectedly modified to %s" % returned[0]["repl_body"])
+        self.assertEqual(
+            returned[0]["repl_body"],
+            "\n%s\n%s|%s|Test" % (
+                self.test_text,
+                self.test_address,
+                self.test_address
+            ),
+            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+        )
 
     def test_replacements_replace(self):
 
-        """ Test the replacement feature of sender, recipient and header replacement [add mode]
+        """ Test the replacement feature of sender, recipient and header
+            replacement [add mode]
         """
 
         self.test_text = "Testmail #DISCLAIMER#"
@@ -162,8 +188,11 @@ class DisclaimerTestCase(TestCase):
 
         returned = self.tool_run_real_test({"Test": "Test"})
 
-        self.assertEqual(returned[0]["repl_body"], "\nTestmail %s|%s|Test" % (self.test_address, self.test_address),
-                         "Body was unexpectedly modified to %s" % returned[0]["repl_body"])
+        self.assertEqual(
+            returned[0]["repl_body"],
+            "\nTestmail %s|%s|Test" % (self.test_address, self.test_address),
+            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+        )
 
     def test_multiple_headers(self):
 
@@ -199,7 +228,8 @@ class DisclaimerTestCase(TestCase):
 
     def test_unresolvable_subtag(self):
 
-        """ Test an unresolvable subtag with template_fail=True inside a disclaimer
+        """ Test an unresolvable subtag with template_fail=True
+            inside a disclaimer
         TODO
         """
 

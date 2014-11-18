@@ -13,7 +13,8 @@ class RequirementsTestCase(TestCase):
 
     def setUp(self):
 
-        """ A basic setup with a simple disclaimer, no directory servers, a basic rule and a basic action
+        """ A basic setup with a simple disclaimer, no directory servers, a
+            basic rule and a basic action
         """
 
         disclaimer = models.Disclaimer()
@@ -63,13 +64,17 @@ class RequirementsTestCase(TestCase):
 
         # The requirement should basically be enabled
 
-        self.assertTrue(helper.enabled, "Helper wasn't enabled after initialization.")
+        self.assertTrue(
+            helper.enabled,
+            "Helper wasn't enabled after initialization."
+        )
 
         return helper
 
     def test_wrong_ip(self):
 
-        """ A requirement requiring a specific IP should work when connecting from the right ip and fail otherwise
+        """ A requirement requiring a specific IP should work when
+            connecting from the right ip and fail otherwise
         """
 
         requirement = self.tool_basic_requirement()
@@ -85,7 +90,10 @@ class RequirementsTestCase(TestCase):
 
         helper.connect("", "", "1.1.1.1", "", {})
 
-        self.assertTrue(helper.enabled, "Helper wasn't enabled after connecting with the right IP")
+        self.assertTrue(
+            helper.enabled,
+            "Helper wasn't enabled after connecting with the right IP"
+        )
 
         # Try to mimic a connection from the wrong IP
 
@@ -93,11 +101,15 @@ class RequirementsTestCase(TestCase):
 
         helper.connect("", "", "1.1.1.2", "", {})
 
-        self.assertFalse(helper.enabled, "Helper was enabled after connecting with the wrong IP")
+        self.assertFalse(
+            helper.enabled,
+            "Helper was enabled after connecting with the wrong IP"
+        )
 
     def test_wrong_sender(self):
 
-        """ A requirement requiring a specific sender should work when using it and fail otherwise
+        """ A requirement requiring a specific sender should work when
+            using it and fail otherwise
         """
 
         requirement = self.tool_basic_requirement()
@@ -113,7 +125,10 @@ class RequirementsTestCase(TestCase):
         helper.connect("", "", "1.1.1.1", "", {})
         helper.mail_from("abc", {})
 
-        self.assertTrue(helper.enabled, "Helper wasn't enabled after sending to the right sender")
+        self.assertTrue(
+            helper.enabled,
+            "Helper wasn't enabled after sending to the right sender"
+        )
 
         # Try to mimic a wrong sender
 
@@ -122,11 +137,15 @@ class RequirementsTestCase(TestCase):
         helper.connect("", "", "1.1.1.1", "", {})
         helper.mail_from("def", {})
 
-        self.assertFalse(helper.enabled, "Helper was enabled after sending to the wrong sender")
+        self.assertFalse(
+            helper.enabled,
+            "Helper was enabled after sending to the wrong sender"
+        )
 
     def test_wrong_recipient(self):
 
-        """ A requirement requiring a specific recipient should work when using it and fail otherwise
+        """ A requirement requiring a specific recipient should work
+            when using it and fail otherwise
         """
 
         requirement = self.tool_basic_requirement()
@@ -142,7 +161,10 @@ class RequirementsTestCase(TestCase):
         helper.connect("", "", "1.1.1.1", "", {})
         helper.rcpt("abc", {})
 
-        self.assertTrue(helper.enabled, "Helper wasn't enabled after sending to the right recipient")
+        self.assertTrue(
+            helper.enabled,
+            "Helper wasn't enabled after sending to the right recipient"
+        )
 
         # Try to mimic a wrong recipient
 
@@ -151,11 +173,15 @@ class RequirementsTestCase(TestCase):
         helper.connect("", "", "1.1.1.1", "", {})
         helper.rcpt("def", {})
 
-        self.assertFalse(helper.enabled, "Helper was enabled after sending to the wrong recipient")
+        self.assertFalse(
+            helper.enabled,
+            "Helper was enabled after sending to the wrong recipient"
+        )
 
     def test_wrong_header(self):
 
-        """ A requirement requiring a specific header should work when using it and fail otherwise
+        """ A requirement requiring a specific header should work when using
+            it and fail otherwise
         """
 
         requirement = self.tool_basic_requirement()
@@ -172,7 +198,10 @@ class RequirementsTestCase(TestCase):
         helper.header("Test", "Test", {})
         helper.eoh({})
 
-        self.assertTrue(helper.enabled, "Helper wasn't enabled after sending to the right header")
+        self.assertTrue(
+            helper.enabled,
+            "Helper wasn't enabled after sending to the right header"
+        )
 
         # Try to mimic a wrong header by not specifying a header at all
 
@@ -181,11 +210,16 @@ class RequirementsTestCase(TestCase):
         helper.connect("", "", "1.1.1.1", "", {})
         helper.eoh({})
 
-        self.assertFalse(helper.enabled, "Helper was enabled after sending to the wrong header (=no header at all)")
+        self.assertFalse(
+            helper.enabled,
+            "Helper was enabled after sending to the wrong header "
+            "(=no header at all)"
+        )
 
     def test_no_header_wildcard(self):
 
-        """ A requirement requiring the default wildcard header should work when not specifying a header at all
+        """ A requirement requiring the default wildcard header should work
+            when not specifying a header at all
         """
 
         requirement = self.tool_basic_requirement()
@@ -201,11 +235,15 @@ class RequirementsTestCase(TestCase):
         helper.connect("", "", "1.1.1.1", "", {})
         helper.eoh({})
 
-        self.assertTrue(helper.enabled, "Helper wasn't enabled after sending no header")
+        self.assertTrue(
+            helper.enabled,
+            "Helper wasn't enabled after sending no header"
+        )
 
     def test_no_header_specific(self):
 
-        """ A requirement requiring a specific header should not work when not specifying a header at all
+        """ A requirement requiring a specific header should not work
+            when not specifying a header at all
         """
 
         requirement = self.tool_basic_requirement()
@@ -221,11 +259,15 @@ class RequirementsTestCase(TestCase):
         helper.connect("", "", "1.1.1.1", "", {})
         helper.eoh({})
 
-        self.assertFalse(helper.enabled, "Helper was enabled after sending no header")
+        self.assertFalse(
+            helper.enabled,
+            "Helper was enabled after sending no header"
+        )
 
     def test_wrong_body(self):
 
-        """ A requirement requiring a specific body should work when using it and fail otherwise
+        """ A requirement requiring a specific body should work when
+            using it and fail otherwise
         """
 
         requirement = self.tool_basic_requirement()
@@ -244,7 +286,10 @@ class RequirementsTestCase(TestCase):
         helper.body("Test", {})
         helper.eob({})
 
-        self.assertTrue(helper.enabled, "Helper wasn't enabled after sending to the right body")
+        self.assertTrue(
+            helper.enabled,
+            "Helper wasn't enabled after sending to the right body"
+        )
 
         # Try to mimic a wrong body by not specifying a body at all
 
@@ -255,11 +300,16 @@ class RequirementsTestCase(TestCase):
         helper.rcpt("test@company.com", {})
         helper.eob({})
 
-        self.assertFalse(helper.enabled, "Helper was enabled after sending to the wrong body (=no body at all)")
+        self.assertFalse(
+            helper.enabled,
+            "Helper was enabled after sending to the wrong body "
+            "(=no body at all)"
+        )
 
     def test_no_body_wildcard(self):
 
-        """ A requirement requiring the default wildcard body should work when not specifying a body at all
+        """ A requirement requiring the default wildcard body
+            should work when not specifying a body at all
         """
 
         requirement = self.tool_basic_requirement()
@@ -277,11 +327,15 @@ class RequirementsTestCase(TestCase):
         helper.rcpt("test@company.com", {})
         helper.eob({})
 
-        self.assertTrue(helper.enabled, "Helper wasn't enabled after sending no body")
+        self.assertTrue(
+            helper.enabled,
+            "Helper wasn't enabled after sending no body"
+        )
 
     def test_no_body_specific(self):
 
-        """ A requirement requiring a specific body should not work when not specifying a body at all
+        """ A requirement requiring a specific body should not work
+            when not specifying a body at all
         """
 
         requirement = self.tool_basic_requirement()
@@ -299,11 +353,15 @@ class RequirementsTestCase(TestCase):
         helper.rcpt("test@company.com", {})
         helper.eob({})
 
-        self.assertFalse(helper.enabled, "Helper was enabled after sending no body")
+        self.assertFalse(
+            helper.enabled,
+            "Helper was enabled after sending no body"
+        )
 
     def test_deny_skipped(self):
 
-        """ Test a rule with multiple requirements and a skipped deny requirement. (The rule should be applied)
+        """ Test a rule with multiple requirements and a skipped deny
+            requirement. (The rule should be applied)
         TODO
         """
 
@@ -311,7 +369,8 @@ class RequirementsTestCase(TestCase):
 
     def test_deny_aborted(self):
 
-        """ Test a rule with multiple requirements and a skipped deny requirement. (The rule should not be applied)
+        """ Test a rule with multiple requirements and a skipped
+            deny requirement. (The rule should not be applied)
         TODO
         """
 

@@ -26,9 +26,11 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
 
     """ Disclaimr Milter
 
-    This is the main milter thread for disclaimr based on libmilter.MiterProtocol. It will be given the options and a basic
-    configuration set. During its workflow, it will narrow down the available requirements and disable itself,
-    once no requirements are left, so that no unneccesary steps are taken.
+    This is the main milter thread for disclaimr based on
+    libmilter.MiterProtocol. It will be given the options and a basic
+    configuration set. During its workflow, it will narrow down the available
+    requirements and disable itself, once no requirements are left, so
+    that no unneccesary steps are taken.
 
     Uses the MilterHelper to do the real work
 
@@ -265,7 +267,11 @@ def run_disclaimr_milter():
     """
 
     # Set milter options
-    opts = lm.SMFIF_CHGBODY | lm.SMFIF_CHGFROM | lm.SMFIF_ADDRCPT | lm.SMFIF_QUARANTINE
+    opts = \
+        lm.SMFIF_CHGBODY | \
+        lm.SMFIF_CHGFROM | \
+        lm.SMFIF_ADDRCPT | \
+        lm.SMFIF_QUARANTINE
 
     # Initialize Fork Factory
     f = lm.ForkFactory(options.socket, DisclaimrMilter, opts)
@@ -299,22 +305,52 @@ if __name__ == '__main__':
 
     # Argument handling
 
-    parser = argparse.ArgumentParser(description="Disclaimr - Mail disclaimer server. Starts a milter daemon, "
-                                                 "that adds dynamic disclaimers to messages")
-
-    parser.add_argument("-s", "--socket", dest="socket", default="inet:127.0.0.1:5000",
-                        help="Socket to open. IP-Sockets need "
-                             "to be in the form inet:<ip>:<port> [inet:127.0.0.1:5000]")
-
-    parser.add_argument("-q", "--quiet", dest="quiet", action="store_true", help="Be quiet doing things")
-    parser.add_argument("-d", "--debug", dest="debug", action="store_true", help="Enable debug logging")
-
-    parser.add_argument("-i", "--ignore-cert", dest="ignore_cert", action="store_true",
-                        help="Ignore certificates when connecting to tls-enabled directory servers"
+    parser = argparse.ArgumentParser(
+        description="Disclaimr - Mail disclaimer server. Starts a "
+                    "milter daemon, that adds dynamic disclaimers to messages"
     )
 
-    parser.add_argument("-c", "--clean-cache", dest="clean_cache", metavar="CYCLES", help="Clean query cache (remove timed out "
-                                                                                          "items) every CYCLES")
+    parser.add_argument(
+        "-s",
+        "--socket",
+        dest="socket",
+        default="inet:127.0.0.1:5000",
+        help="Socket to open. IP-Sockets need to be in the form "
+             "inet:<ip>:<port> [inet:127.0.0.1:5000]"
+    )
+
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        dest="quiet",
+        action="store_true",
+        help="Be quiet doing things"
+    )
+
+    parser.add_argument(
+        "-d",
+        "--debug",
+        dest="debug",
+        action="store_true",
+        help="Enable debug logging"
+    )
+
+    parser.add_argument(
+        "-i",
+        "--ignore-cert",
+        dest="ignore_cert",
+        action="store_true",
+        help="Ignore certificates when connecting to "
+             "tls-enabled directory servers"
+    )
+
+    parser.add_argument(
+        "-c",
+        "--clean-cache",
+        dest="clean_cache",
+        metavar="CYCLES",
+        help="Clean query cache (remove timed out items) every CYCLES"
+    )
 
     options = parser.parse_args()
 

@@ -28,7 +28,10 @@ class PerformanceTest(TestCase):
 
         if not settings.TEST_PERFORMANCE["username"] == "":
 
-            server.login(settings.TEST_PERFORMANCE["username"], settings.TEST_PERFORMANCE["password"])
+            server.login(
+                settings.TEST_PERFORMANCE["username"],
+                settings.TEST_PERFORMANCE["password"]
+            )
 
         for i in range(settings.TEST_PERFORMANCE["sends"]):
 

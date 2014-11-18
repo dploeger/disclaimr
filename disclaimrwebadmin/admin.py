@@ -2,7 +2,8 @@ from django import forms
 from django.contrib import admin
 from django.forms import PasswordInput
 from grappelli.forms import GrappelliSortableHiddenMixin
-from .models import Rule, Requirement, Action, Disclaimer, DirectoryServer, DirectoryServerURL
+from .models import Rule, Requirement, Action, Disclaimer, DirectoryServer, \
+    DirectoryServerURL
 
 
 class RequirementInline(admin.StackedInline):
@@ -19,7 +20,10 @@ class ActionInline(GrappelliSortableHiddenMixin, admin.StackedInline):
     inline_classes = ('grp-collapse grp-open',)
 
 
-class DirectoryServerURLInline(GrappelliSortableHiddenMixin, admin.TabularInline):
+class DirectoryServerURLInline(
+    GrappelliSortableHiddenMixin,
+    admin.TabularInline
+):
 
     model = DirectoryServerURL
     extra = 0

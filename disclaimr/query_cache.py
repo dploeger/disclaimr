@@ -35,7 +35,9 @@ class QueryCache(object):
 
         then = QueryCache.cache[directory_server.id][query]["timestamp"]
 
-        if (now-then).total_seconds() > QueryCache.cache[directory_server.id]["_timeout"]:
+        timeout = QueryCache.cache[directory_server.id]["_timeout"]
+
+        if (now-then).total_seconds() > timeout:
 
             return None
 
@@ -57,7 +59,8 @@ class QueryCache(object):
 
         if directory_server.id not in QueryCache.cache:
 
-            # Create a basic directory server cache item and store the timeout value
+            # Create a basic directory server cache item and store the
+            # timeout value
 
             QueryCache.cache[directory_server.id] = {
                 "_timeout": directory_server.cache_timeout
@@ -80,6 +83,8 @@ class QueryCache(object):
 
         for directory_server_id in list(QueryCache.cache):
 
+            timeout = QueryCache.cache[directory_server_id]["_timeout"]
+
             for query in list(QueryCache.cache[directory_server_id]):
 
                 if query == "_timeout":
@@ -87,7 +92,7 @@ class QueryCache(object):
 
                 then = QueryCache.cache[directory_server_id][query]["timestamp"]
 
-                if (now-then).total_seconds() > QueryCache.cache[directory_server_id]["_timeout"]:
+                if (now-then).total_seconds() > timeout:
 
                     # The cache item has timed out. Remove it.
 

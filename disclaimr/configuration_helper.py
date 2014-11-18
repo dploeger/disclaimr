@@ -9,7 +9,8 @@ def build_configuration():
         "sender_ip": []
     }
 
-    # Fetch the sender_ip networks of all enabled requirements, that have at least one enabled action in their associated rule
+    # Fetch the sender_ip networks of all enabled requirements, that have at
+    # least one enabled action in their associated rule
 
     for requirement in models.Requirement.objects.all():
 
