@@ -145,6 +145,12 @@ class DirectoryServer(models.Model):
                                                                    "replaced when resolving."),
                                     default="mail=%s")
 
+    enable_cache = models.BooleanField(_("enable cache"), help_text=_("Enable the LDAP query cache for this directory server"),
+                                       default=True)
+
+    cache_timeout = models.SmallIntegerField(_("cache timeout"), help_text=_("How long (in seconds) a query is cached"),
+                                             default=3600)
+
     def __unicode__(self):
 
         if not self.enabled:

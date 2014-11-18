@@ -1,6 +1,7 @@
 """ disclaimr - Mail disclaimer server
 """
 import argparse
+import socket
 import ldap
 import os
 
@@ -11,6 +12,8 @@ import sys
 import logging
 
 # Setup Django
+from disclaimr.query_cache import QueryCache
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "disclaimrweb.settings")
 import django
 django.setup()
@@ -198,6 +201,64 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
         logging.debug("Close called. QID: %s" % self._qid)
 
 
+class DisclaimrForkFactory(lm.ForkFactory):
+
+    def run(self):
+
+        self._setupSock()
+
+        cycle_timer = 0
+
+        while True:
+
+            cycle_timer += 1
+
+            if cycle_timer > options.clean_cache:
+
+                # We have to clear the cache
+
+                logging.debug("Flushing cache.")
+
+                cycle_timer = 0
+                QueryCache.flush()
+
+            if self._close.isSet():
+                break
+
+            try:
+
+                sock, addr = self.sock.accept()
+
+            except socket.timeout:
+
+                logging.debug("Accept socket timed out")
+                continue
+
+            except socket.error, e:
+
+                emsg = 'ERROR IN ACCEPT(): %s' % e
+                self.log(emsg)
+                logging.debug(emsg)
+                continue
+
+            sock.settimeout(self.cSockTimeout)
+            p = self.protocol(self.opts)
+            p.transport = sock
+
+            try:
+
+                p.start()
+
+            except Exception, e:
+
+                emsg = 'An error occured starting the thread for ' + \
+                       'connect from: %r: %s' % (addr, e)
+
+                logging.warn(emsg)
+                p.transport = None
+                sock.close()
+
+
 def run_disclaimr_milter():
 
     """ Start the multiforking milter daemon
@@ -251,6 +312,9 @@ if __name__ == '__main__':
     parser.add_argument("-i", "--ignore-cert", dest="ignore_cert", action="store_true",
                         help="Ignore certificates when connecting to tls-enabled directory servers"
     )
+
+    parser.add_argument("-c", "--clean-cache", dest="clean_cache", metavar="CYCLES", help="Clean query cache (remove timed out "
+                                                                                          "items) every CYCLES")
 
     options = parser.parse_args()
 

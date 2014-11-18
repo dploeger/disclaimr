@@ -4,6 +4,8 @@ from django.conf import settings
 
 from django.test import TestCase
 import ldap
+import time
+from disclaimr.query_cache import QueryCache
 from disclaimrwebadmin import models, constants
 from disclaimr.configuration_helper import build_configuration
 from disclaimr.milter_helper import MilterHelper
@@ -56,6 +58,7 @@ class DirectoryServerTestCase(TestCase):
 
         self.directory_server.name = "Test"
         self.directory_server.enabled = True
+        self.directory_server.enable_cache = False
         self.directory_server.base_dn = settings.TEST_DIRECTORY_SERVER["base_dn"]
         self.directory_server.search_query = settings.TEST_DIRECTORY_SERVER["query"]
 
@@ -175,3 +178,38 @@ class DirectoryServerTestCase(TestCase):
 
         self.assertEqual(returned[0]["repl_body"], "\n%s" % self.test_text,
                          "Body was unexpectedly modified to %s" % returned[0]["repl_body"])
+
+    def test_caching(self):
+
+        """ Test the query cache feature by checking, if a query was cached
+        """
+
+        self.directory_server.enable_cache = True
+        self.directory_server.save()
+
+        # Run the real test and check, if the query was cached
+
+        self.tool_run_real_test()
+
+        self.assertIn(self.directory_server.id, QueryCache.cache, "Directory server wasn't cached at all!")
+
+        self.assertGreater(len(QueryCache.cache[self.directory_server.id]), 1, "Item seemingly wasn't cached.")
+
+    def test_caching_timeout(self):
+
+        """ Test the query cache timeout by mimicing the use
+        """
+
+        self.directory_server.enable_cache = True
+        self.directory_server.cache_timeout = 1
+        self.directory_server.save()
+
+        QueryCache.set(self.directory_server, "TEST", "TEST")
+
+        self.assertIsNotNone(QueryCache.get(self.directory_server, "TEST"), "Cached item wasn't returned.")
+
+        # Sleep for the cache to time out
+
+        time.sleep(self.directory_server.cache_timeout + 1)
+
+        self.assertIsNone(QueryCache.get(self.directory_server, "TEST"), "Cached item didn't time out.")

@@ -21,6 +21,7 @@ It has the following features:
 * [Django 1.7](https://www.djangoproject.com/)
 * [Grappelli](http://grappelliproject.com/)
 * [Python-LDAP](http://www.python-ldap.org/)
+* [lxml](http://lxml.de/)
 * [mysqldb](https://github.com/farcepest/MySQLdb1) (or another database backend for Python. Disclaimr doesn't support Sqlite)
 
 ## Installation
@@ -29,11 +30,12 @@ It has the following features:
 
 Install the requirements of Disclaimr (for example using pip):
 
-    pip install python-libmilter netaddr django django-grappelli python-ldap
+    pip install python-libmilter netaddr django django-grappelli python-ldap lxml
 
-You still need to install the python package for the database backend you'd like to use. For example, to use mysqldb run:
+You still need to install the python package for the database backend you'd like to use. For example, to use MySQL with the
+mysqlclient API driver, run:
 
-    pip install mysql-python
+    pip install mysqlclient
 
 Download the latest Disclaimr release and put it in an accessible path.
 

@@ -4,6 +4,7 @@ import logging
 import ldap
 from lxml import etree
 import re
+from disclaimr.query_cache import QueryCache
 from disclaimrwebadmin import models, constants
 
 
@@ -323,17 +324,58 @@ class MilterHelper(object):
 
                             continue
 
-                        for url in directory_server.directoryserverurl_set.all():
+                        # The query we need to run against the directory server
 
-                            logging.debug("Trying url %s" % url.url)
+                        query = directory_server.search_query % self.mail_data["envelope_from"]
 
-                            conn = ldap.initialize(url.url)
+                        result = None
 
-                            if directory_server.auth == constants.DIR_AUTH_SIMPLE:
+                        # Do we have that query cached?
+
+                        if directory_server.enable_cache:
+
+                            result = QueryCache.get(directory_server, query)
+
+                        if result is None:
+
+                            for url in directory_server.directoryserverurl_set.all():
+
+                                logging.debug("Trying url %s" % url.url)
+
+                                conn = ldap.initialize(url.url)
+
+                                if directory_server.auth == constants.DIR_AUTH_SIMPLE:
+
+                                    try:
+
+                                        conn.simple_bind_s(directory_server.userdn, directory_server.password)
+
+                                    except ldap.SERVER_DOWN:
+
+                                        # Cannot reach server. Skip.
+
+                                        logging.warn("Cannot reach server %s. Skipping." % url)
+
+                                        continue
+
+                                    except (ldap.INVALID_CREDENTIALS, ldap.INVALID_DN_SYNTAX):
+
+                                        # Cannot authenticate. Skip.
+
+                                        logging.warn("Cannot authenticate to directory server %s with dn %s. Skipping." % (
+                                            url,
+                                            directory_server.userdn)
+                                        )
+
+                                        continue
 
                                 try:
 
-                                    conn.simple_bind_s(directory_server.userdn, directory_server.password)
+                                    result = conn.search_s(
+                                        directory_server.base_dn,
+                                        ldap.SCOPE_SUBTREE,
+                                        query
+                                    )
 
                                 except ldap.SERVER_DOWN:
 
@@ -343,61 +385,42 @@ class MilterHelper(object):
 
                                     continue
 
-                                except (ldap.INVALID_CREDENTIALS, ldap.INVALID_DN_SYNTAX):
+                                except ldap.INVALID_CREDENTIALS:
 
-                                    # Cannot authenticate. Skip.
+                                    # Cannot authenticate as guest. Skip.
 
-                                    logging.warn("Cannot authenticate to directory server %s with dn %s. Skipping." % (
-                                        url,
-                                        directory_server.userdn)
-                                    )
+                                    logging.warn("Cannot authenticate to directory server %s as guest. Skipping." % url)
 
                                     continue
 
-                            try:
+                                if not result:
 
-                                result = conn.search_s(
-                                    directory_server.base_dn,
-                                    ldap.SCOPE_SUBTREE,
-                                    directory_server.search_query % self.mail_data["envelope_from"]
-                                )
+                                    if action.resolve_sender_fail:
 
-                            except ldap.SERVER_DOWN:
+                                        logging.warn("Cannot resolve email %s. Skipping" % self.mail_data["envelope_from"])
 
-                                # Cannot reach server. Skip.
+                                        return
 
-                                logging.warn("Cannot reach server %s. Skipping." % url)
+                                    logging.info("Cannot resolve email %s" % self.mail_data["envelope_from"])
 
-                                continue
+                                elif len(result) > 1:
 
-                            except ldap.INVALID_CREDENTIALS:
+                                    logging.warn("Multiple results found for email %s. Using the first one." %
+                                                 self.mail_data["envelope_from"])
 
-                                # Cannot authenticate as guest. Skip.
+                                # Flatten result into replacement dict
 
-                                logging.warn("Cannot authenticate to directory server %s as guest. Skipping." % url)
+                                logging.debug("Found entry %s" % result[0][0])
 
-                                continue
+                                # Store cache if we should
 
-                            if not result:
+                                if directory_server.enable_cache:
 
-                                if action.resolve_sender_fail:
+                                    QueryCache.set(directory_server, query, result)
 
-                                    logging.warn("Cannot resolve email %s. Skipping" % self.mail_data["envelope_from"])
+                                resolved_successfully = True
 
-                                    return
-
-                                logging.info("Cannot resolve email %s" % self.mail_data["envelope_from"])
-
-                            elif len(result) > 1:
-
-                                logging.warn("Multiple results found for email %s. Using the first one." %
-                                             self.mail_data["envelope_from"])
-
-                            # Flatten result into replacement dict
-
-                            logging.debug("Found entry %s" % result[0][0])
-
-                            resolved_successfully = True
+                        if result is not None:
 
                             for key in result[0][1].iterkeys():
 
