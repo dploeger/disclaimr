@@ -166,6 +166,7 @@ class DirectoryServerTestCase(TestCase):
     def test_replacement_fail(self):
 
         """ If we cannot resolve the sender and set resolution to fail, we should get an unmodified mail back.
+        FIXME coverage issue
         """
 
         action = models.Action.objects.filter(rule__id=self.rule.id)[0]
@@ -195,6 +196,10 @@ class DirectoryServerTestCase(TestCase):
 
         self.assertGreater(len(QueryCache.cache[self.directory_server.id]), 1, "Item seemingly wasn't cached.")
 
+        # Clean the cache for other tests
+
+        QueryCache.cache = {}
+
     def test_caching_timeout(self):
 
         """ Test the query cache timeout by mimicing the use
@@ -213,3 +218,83 @@ class DirectoryServerTestCase(TestCase):
         time.sleep(self.directory_server.cache_timeout + 1)
 
         self.assertIsNone(QueryCache.get(self.directory_server, "TEST"), "Cached item didn't time out.")
+
+        # Clean the cache for other tests
+
+        QueryCache.cache = {}
+
+    def test_caching_flush(self):
+
+        """ Test the query cache flushing method
+        """
+
+        self.directory_server.enable_cache = True
+        self.directory_server.cache_timeout = 1
+        self.directory_server.save()
+
+        QueryCache.set(self.directory_server, "TEST", "TEST")
+
+        self.assertIsNotNone(QueryCache.get(self.directory_server, "TEST"), "Cached item wasn't returned.")
+
+        # Sleep for the cache to time out
+
+        time.sleep(self.directory_server.cache_timeout + 1)
+
+        QueryCache.flush()
+
+        # The cache should be empty now
+
+        self.assertEqual(len(QueryCache.cache), 0, "The cache wasn't flushed.")
+
+        # Clean the cache for other tests
+
+        QueryCache.cache = {}
+
+    def test_unreachable(self):
+
+        """ Test an unreachable directory server
+        TODO
+        """
+
+        pass
+
+    def test_invalid_auth(self):
+
+        """ Test invalid username/passwort for a directory server
+        TODO
+        """
+
+        pass
+
+    def test_unreachable_guest(self):
+
+        """ Test an unreachable directory server without simple auth
+        TODO
+        """
+
+        pass
+
+    def test_invalid_auth_guest(self):
+
+        """ Test invalid username/passwort for a directory server without simple auth. Disabling simple auth on the directory
+        server when connecting to a simple-auth-requiring ldap server should be a sufficient test.
+        TODO
+        """
+
+        pass
+
+    def test_unresolvable(self):
+
+        """ Test for an unresolvable address in the directory server
+        TODO
+        """
+
+        pass
+
+    def test_multiple(self):
+
+        """ Test for multiple resolved addresses
+        TODO
+        """
+
+        pass

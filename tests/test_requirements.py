@@ -301,3 +301,18 @@ class RequirementsTestCase(TestCase):
 
         self.assertFalse(helper.enabled, "Helper was enabled after sending no body")
 
+    def test_deny_skipped(self):
+
+        """ Test a rule with multiple requirements and a skipped deny requirement. (The rule should be applied)
+        TODO
+        """
+
+        pass
+
+    def test_deny_aborted(self):
+
+        """ Test a rule with multiple requirements and a skipped deny requirement. (The rule should not be applied)
+        TODO
+        """
+
+        pass

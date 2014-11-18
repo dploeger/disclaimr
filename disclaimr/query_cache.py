@@ -78,11 +78,14 @@ class QueryCache(object):
 
         now = datetime.datetime.now()
 
-        for directory_server_id in QueryCache.cache.iterkeys():
+        for directory_server_id in list(QueryCache.cache):
 
-            for query in QueryCache.cache[directory_server_id]:
+            for query in list(QueryCache.cache[directory_server_id]):
 
-                then = query["timeout"]
+                if query == "_timeout":
+                    continue
+
+                then = QueryCache.cache[directory_server_id][query]["timestamp"]
 
                 if (now-then).total_seconds() > QueryCache.cache[directory_server_id]["_timeout"]:
 

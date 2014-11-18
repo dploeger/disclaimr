@@ -62,7 +62,7 @@ class DisclaimerTestCase(TestCase):
 
         return helper
 
-    def tool_run_real_test(self, header = None):
+    def tool_run_real_test(self, header=None):
 
         """ Runs the test using the milter helper and returns the action dictionary of eob
 
@@ -99,6 +99,8 @@ class DisclaimerTestCase(TestCase):
     def test_disabled_action(self):
 
         """ If we disable the only action, we should get an empty action dictionary back
+
+        FIXME Coverage problem
         """
 
         self.action.enabled = False
@@ -162,3 +164,51 @@ class DisclaimerTestCase(TestCase):
 
         self.assertEqual(returned[0]["repl_body"], "\nTestmail %s|%s|Test" % (self.test_address, self.test_address),
                          "Body was unexpectedly modified to %s" % returned[0]["repl_body"])
+
+    def test_multiple_headers(self):
+
+        """ Test a mail with multiple headers
+        TODO
+        """
+
+        pass
+
+    def test_multipart(self):
+
+        """ Test a multipart mail
+        TODO
+        """
+
+        pass
+
+    def test_html(self):
+
+        """ Test a HTML mail with an HTML disclaimer
+        TODO
+        """
+
+        pass
+
+    def test_unresolvable_tag(self):
+
+        """ Test an unresolvable tag with template_fail=True inside a disclaimer
+        TODO
+        """
+
+        pass
+
+    def test_unresolvable_subtag(self):
+
+        """ Test an unresolvable subtag with template_fail=True inside a disclaimer
+        TODO
+        """
+
+        pass
+
+    def test_charset(self):
+
+        """ Test a mail with a non-utf8-charset
+        TODO
+        """
+
+        pass
