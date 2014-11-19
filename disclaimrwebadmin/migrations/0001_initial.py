@@ -71,7 +71,7 @@ class Migration(migrations.Migration):
                 ('description', models.TextField(default=b'', help_text='A short description of this disclaimer', verbose_name='description', blank=True)),
                 ('text', models.TextField(default=b'', help_text='A plain text disclaimer', verbose_name='text-part', blank=True)),
                 ('text_use_template', models.BooleanField(default=True, help_text='Use template tags in the text part. Available tags are: {sender}, {recipient} and all attributes, that are provided by resolving the sender in a directory server', verbose_name='use template tags')),
-                ('html_use_text', models.BooleanField(default=True, help_text='Use the contents of the text part for the html part.', verbose_name='use text part')),
+                ('html_use_text', models.BooleanField(default=True, help_text='Use the contents of the text part for the html part', verbose_name='use text part')),
                 ('html', models.TextField(default=b'', help_text='A html disclaimer (if not filled, the plain text disclaimer will be used.', verbose_name='html-part', blank=True)),
                 ('html_use_template', models.BooleanField(default=True, help_text='Use template tags in the html part. Available tags are: {sender}, {recipient} and all attributes, that are provided by resolving the sender in a directory server', verbose_name='use template tags')),
                 ('template_fail', models.BooleanField(default=False, help_text="Don't use this disclaimer (and stop the associated action), if a template tag cannot be filled. If this is true, the template tag will be replaced with an empty string.", verbose_name="fail if template doesn't exist")),
