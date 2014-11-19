@@ -366,6 +366,7 @@ class MilterHelper(object):
                         if directory_server.enable_cache:
 
                             result = QueryCache.get(directory_server, query)
+                            resolved_successfully = True
 
                         if result is None:
 

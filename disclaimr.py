@@ -349,7 +349,8 @@ if __name__ == '__main__':
         "--clean-cache",
         dest="clean_cache",
         metavar="CYCLES",
-        help="Clean query cache (remove timed out items) every CYCLES"
+        help="Clean query cache (remove timed out items) every CYCLES [20000]",
+        default=20000
     )
 
     options = parser.parse_args()
