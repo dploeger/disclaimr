@@ -151,6 +151,13 @@ class Disclaimer(models.Model):
         blank=True
     )
 
+    text_charset = models.CharField(
+        _("Charset"),
+        help_text=_("Charset of the text field"),
+        default="utf-8",
+        max_length=255
+    )
+
     text_use_template = models.BooleanField(
         _("use template tags"),
         help_text=_("Use template tags in the text part. Available "
@@ -172,6 +179,13 @@ class Disclaimer(models.Model):
                     "disclaimer will be used."),
         default="",
         blank=True
+    )
+
+    html_charset = models.CharField(
+        _("Charset"),
+        help_text=_("Charset of the html field"),
+        default="utf-8",
+        max_length=255
     )
 
     html_use_template = models.BooleanField(

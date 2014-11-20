@@ -1,6 +1,5 @@
 """ Python Module for class MilterHelper """
 import base64
-import cgi
 import email
 import logging
 import quopri
@@ -290,6 +289,36 @@ class MilterHelper(object):
             "repl_body": new_body
         }]
 
+    @staticmethod
+    def make_html(text):
+
+        """
+        Escape text to HTML entities
+
+        :param text: Non-HTML-Text
+        :return: HTMLized text
+        """
+
+        # Replace \r\n newlines with \n
+
+        text = re.sub("\r\n", "\n", text)
+
+        html_escape_table = {
+            "&": "&amp;",
+            '"': "&quot;",
+            "'": "&apos;",
+            ">": "&gt;",
+            "<": "&lt;",
+            }
+
+        text = "".join(html_escape_table.get(c, c) for c in text)
+
+        # Convert Newlines with br
+
+        text = re.sub("\n", "<br />", text)
+
+        return text
+
     def do_action(self, mail, action):
 
         """ Apply an action on a mail (optionally recursing through the
@@ -318,7 +347,9 @@ class MilterHelper(object):
 
             if mail.get_content_type().lower() == "text/plain":
 
-                text = action.disclaimer.text.encode("utf-8", "replace")
+                text = action.disclaimer.text
+
+                disclaimer_charset = action.disclaimer.text_charset
 
                 do_replace = action.disclaimer.text_use_template
 
@@ -326,32 +357,30 @@ class MilterHelper(object):
 
                 # Rework text disclaimer to valid html
 
-                html_text = action.disclaimer.text
+                text = action.disclaimer.text
 
-                # Replace \r\n newlines with \n
-
-                html_text = re.sub("\r\n", "\n", html_text)
-
-                # Convert the text to the htmlentities
-
-                html_text = cgi.escape(html_text).encode(
-                    "utf-8",
-                    "replace"
-                )
-
-                # Convert Newlines with br
-
-                html_text = re.sub("\n", "<br />", html_text)
-
-                text = html_text
+                disclaimer_charset = action.disclaimer.text_charset
 
                 do_replace = action.disclaimer.text_use_template
 
             else:
 
-                text = action.disclaimer.html.encode("utf-8", "replace")
+                text = action.disclaimer.html
+
+                disclaimer_charset = action.disclaimer.html_charset
 
                 do_replace = action.disclaimer.html_use_template
+
+            # Optionally recode text
+
+            if mail.get_content_charset() != "" and \
+                    mail.get_content_charset().lower() != \
+                    disclaimer_charset.lower():
+
+                text = text.decode(disclaimer_charset.lower()).encode(
+                    mail.get_content_charset().lower())
+
+                disclaimer_charset = mail.get_content_charset().lower()
 
             if do_replace:
 
@@ -504,7 +533,8 @@ class MilterHelper(object):
                                 elif len(result) > 1:
 
                                     logging.warn(
-                                        "Multiple results found for email %s. " %
+                                        "Multiple results found for "
+                                        "email %s. " %
                                         self.mail_data["envelope_from"]
                                     )
 
@@ -537,11 +567,12 @@ class MilterHelper(object):
 
                         if result is not None:
 
-                            for key in result[0][1].iterkeys():
+                            for key in result[0][1].keys():
 
                                 replacements["resolver"][
                                     key.lower()
-                                ] = ",".join(result[0][1][key])
+                                ] = (",".join(result[0][1][key])).decode(
+                                    "utf-8")
 
                     if not resolved_successfully and action.resolve_sender_fail:
 
@@ -633,7 +664,17 @@ class MilterHelper(object):
 
                             value = ""
 
-                    text = text.replace("{%s}" % replace_key, value)
+                    text = text.replace(
+                        "{%s}" % replace_key,
+                        value
+                    )
+
+            # Make a HTML from the disclaimer, if we wanted to use the text part
+
+            if mail.get_content_type().lower() == "text/html" \
+                    and action.disclaimer.html_use_text:
+
+                text = self.make_html(text)
 
             # Optionally convert the text back to the mail's charcode
 
@@ -674,6 +715,8 @@ class MilterHelper(object):
             else:
 
                 encoding = "78bit"
+
+            mail_text = mail_text.decode(disclaimer_charset)
 
             new_text = mail_text
 
@@ -738,12 +781,13 @@ class MilterHelper(object):
                         etree.tostring(
                             disclaimer_part.xpath("body")[
                                 0
-                            ].getchildren()[0]), mail.get_payload()
+                            ].getchildren()[0]).decode(disclaimer_charset),
+                        new_text
                     )
 
             # Set payload to new text
 
-            mail.set_payload(new_text)
+            mail.set_payload(new_text.encode(disclaimer_charset))
 
             if "Content-Transfer-Encoding" in mail:
 
