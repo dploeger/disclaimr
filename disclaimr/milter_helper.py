@@ -1,6 +1,9 @@
 """ Python Module for class MilterHelper """
+import base64
+import cgi
 import email
 import logging
+import quopri
 import ldap
 from lxml import etree
 import re
@@ -248,32 +251,40 @@ class MilterHelper(object):
 
                 self.do_action(mail, action)
 
-        # Replace the body with the modified one
-
-        # Remove headers
-
-        mail_keys = mail.keys()
-
-        content_type_header = ""
-
-        for key in mail_keys:
-
-            # email.message still needs the content type for the
-            # as_string-method
-
-            if not key.lower() == "content-type":
-
-                del mail[key]
-
-            else:
-
-                content_type_header = "%s: %s\n" % (key, mail[key])
+        # Remove all headers from mail, so we can safely replace the body. Do
+        #  this by removing everything before the first empty line (as per RFC)
 
         new_body = mail.as_string()
 
-        # Now, remove the content-type to have the right body again
+        # Work around mails with mixed line endings. Simply use the first of
+        # any line ending assuming that there's the place
 
-        new_body = re.sub(content_type_header, "", new_body)
+        strip_place_rn = new_body.find("\r\n\r\n")
+        strip_place_n = new_body.find("\n\n")
+
+        if strip_place_n == -1:
+
+            strip_place = strip_place_rn + 2
+
+        elif strip_place_rn == -1:
+
+            strip_place = strip_place_n + 2
+
+        elif strip_place_rn < strip_place_n:
+
+            strip_place = strip_place_rn + 2
+
+        elif strip_place_n < strip_place_rn:
+
+            strip_place = strip_place_n + 2
+
+        else:
+
+            strip_place = 0
+
+        new_body = new_body[strip_place::]
+
+        # Replace the body with the modified one
 
         return [{
             "repl_body": new_body
@@ -313,10 +324,26 @@ class MilterHelper(object):
 
             elif action.disclaimer.html_use_text:
 
-                text = ("<p>%s</p>" % action.disclaimer.text).encode(
+                # Rework text disclaimer to valid html
+
+                html_text = action.disclaimer.text
+
+                # Replace \r\n newlines with \n
+
+                html_text = re.sub("\r\n", "\n", html_text)
+
+                # Convert the text to the htmlentities
+
+                html_text = cgi.escape(html_text).encode(
                     "utf-8",
                     "replace"
                 )
+
+                # Convert Newlines with br
+
+                html_text = re.sub("\n", "<br />", html_text)
+
+                text = html_text
 
                 do_replace = action.disclaimer.text_use_template
 
@@ -378,44 +405,50 @@ class MilterHelper(object):
 
                                 conn = ldap.initialize(url.url)
 
+                                ldap_user = ""
+                                ldap_password = ""
+
                                 if directory_server.auth == \
                                         constants.DIR_AUTH_SIMPLE:
 
-                                    try:
+                                    ldap_user = directory_server.userdn
+                                    ldap_password = directory_server.password
 
-                                        conn.simple_bind_s(
-                                            directory_server.userdn,
-                                            directory_server.password
+                                try:
+
+                                    conn.simple_bind_s(
+                                        ldap_user,
+                                        ldap_password
+                                    )
+
+                                except ldap.SERVER_DOWN:
+
+                                    # Cannot reach server. Skip.
+
+                                    logging.warn(
+                                        "Cannot reach server %s. "
+                                        "Skipping." % url
+                                    )
+
+                                    continue
+
+                                except (
+                                    ldap.INVALID_CREDENTIALS,
+                                    ldap.INVALID_DN_SYNTAX
+                                ):
+
+                                    # Cannot authenticate. Skip.
+
+                                    logging.warn(
+                                        "Cannot authenticate to directory "
+                                        "server %s with dn %s. "
+                                        "Skipping." % (
+                                            url,
+                                            directory_server.userdn
                                         )
+                                    )
 
-                                    except ldap.SERVER_DOWN:
-
-                                        # Cannot reach server. Skip.
-
-                                        logging.warn(
-                                            "Cannot reach server %s. "
-                                            "Skipping." % url
-                                        )
-
-                                        continue
-
-                                    except (
-                                        ldap.INVALID_CREDENTIALS,
-                                        ldap.INVALID_DN_SYNTAX
-                                    ):
-
-                                        # Cannot authenticate. Skip.
-
-                                        logging.warn(
-                                            "Cannot authenticate to directory "
-                                            "server %s with dn %s. "
-                                            "Skipping." % (
-                                                url,
-                                                directory_server.userdn
-                                            )
-                                        )
-
-                                        continue
+                                    continue
 
                                 try:
 
@@ -434,13 +467,18 @@ class MilterHelper(object):
 
                                     continue
 
-                                except ldap.INVALID_CREDENTIALS:
+                                except (ldap.INVALID_CREDENTIALS,
+                                        ldap.NO_SUCH_OBJECT):
 
-                                    # Cannot authenticate as guest. Skip.
+                                    # Cannot authenticate or cannot query.
+                                    # Perhaps the authentication was wrong (
+                                    # guest login without an enabled guest
+                                    # login)
 
                                     logging.warn("Cannot authenticate to "
                                                  "directory server %s as "
-                                                 "guest. Skipping." % url)
+                                                 "guest or cannot query. "
+                                                 "Skipping." % url)
 
                                     continue
 
@@ -466,10 +504,20 @@ class MilterHelper(object):
                                 elif len(result) > 1:
 
                                     logging.warn(
-                                        "Multiple results found for email %s. "
-                                        "Using the first one." %
+                                        "Multiple results found for email %s. " %
                                         self.mail_data["envelope_from"]
                                     )
+
+                                    if action.resolve_sender_fail:
+
+                                        logging.warn(
+                                            "Cannot reliable resolve email %s. "
+                                            "Skipping" % (
+                                                self.mail_data["envelope_from"],
+                                            )
+                                        )
+
+                                        return
 
                                 # Flatten result into replacement dict
 
@@ -601,24 +649,50 @@ class MilterHelper(object):
                 "Adding Disclaimer %s to body" % action.disclaimer.name
             )
 
+            mail_text = mail.get_payload()
+
+            # Decode string, if non-7/8-bit was used
+
+            if "Content-Transfer-Encoding" in mail:
+
+                encoding = mail["Content-Transfer-Encoding"].lower()
+
+                if encoding == "quoted-printable":
+
+                    mail_text = quopri.decodestring(mail_text)
+
+                elif encoding == "base64":
+
+                    mail_text = base64.b64decode(mail.get_payload())
+
+                else:
+
+                    # 7 or 8 bit
+
+                    encoding = "78bit"
+
+            else:
+
+                encoding = "78bit"
+
+            new_text = mail_text
+
             if mail.get_content_type().lower() == "text/plain":
 
                 if action.action == constants.ACTION_ACTION_ADD:
 
                     # text/plain can simply be added
 
-                    mail.set_payload("%s\n%s" % (mail.get_payload(), text))
+                    new_text = "%s\n%s" % (mail_text, text)
 
                 elif action.action == constants.ACTION_ACTION_REPLACETAG:
 
                     # text/plain can simply be replaced
 
-                    mail.set_payload(
-                        re.sub(
-                            action.action_parameters,
-                            text,
-                            mail.get_payload()
-                        )
+                    new_text = re.sub(
+                        action.action_parameters,
+                        text,
+                        mail_text
                     )
 
             elif mail.get_content_type().lower() == "text/html":
@@ -626,7 +700,7 @@ class MilterHelper(object):
                 # text/html has to been put before the closing body-tag,
                 # so parse the text
 
-                html_part = etree.HTML(mail.get_payload())
+                html_part = etree.HTML(mail_text)
 
                 disclaimer_part = etree.HTML(text)
 
@@ -648,12 +722,10 @@ class MilterHelper(object):
                             disclaimer_part.xpath("body")[0].getchildren()[0]
                         )
 
-                    mail.set_payload(
-                        etree.tostring(
-                            html_part,
-                            pretty_print=True,
-                            method="html"
-                        )
+                    new_text = etree.tostring(
+                        html_part,
+                        pretty_print=True,
+                        method="html"
                     )
 
                 elif action.action == constants.ACTION_ACTION_REPLACETAG:
@@ -661,12 +733,32 @@ class MilterHelper(object):
                     # For replacing, we'll just replace tag in the plain
                     # html string with the disclaimer html string
 
-                    mail.set_payload(
-                        re.sub(
-                            action.action_parameters,
-                            etree.tostring(
-                                disclaimer_part.xpath("body")[
-                                    0
-                                ].getchildren()[0]), mail.get_payload()
-                        )
+                    new_text = re.sub(
+                        action.action_parameters,
+                        etree.tostring(
+                            disclaimer_part.xpath("body")[
+                                0
+                            ].getchildren()[0]), mail.get_payload()
                     )
+
+            # Set payload to new text
+
+            mail.set_payload(new_text)
+
+            if "Content-Transfer-Encoding" in mail:
+
+                # Remove original encode-transfer header
+
+                del(mail["Content-Transfer-Encoding"])
+
+            if encoding == "quoted-printable":
+
+                email.encoders.encode_quopri(mail)
+
+            elif encoding == "base64":
+
+                email.encoders.encode_base64(mail)
+
+            else:
+
+                email.encoders.encode_7or8bit(mail)
