@@ -364,9 +364,23 @@ class RequirementsTestCase(TestCase):
             requirement. (The rule should be applied)
         """
 
-        # TODO
+        requirement = self.tool_basic_requirement()
+        requirement.save()
 
-        raise NotImplementedError
+        requirement2 = self.tool_basic_requirement()
+        requirement2.action = constants.REQ_ACTION_DENY
+        requirement2.sender = "IGNORED"
+        requirement2.save()
+
+        helper = self.tool_get_helper()
+
+        helper.connect("", "", "1.1.1.1", "", {})
+        helper.mail_from("test@company.com", {})
+
+        self.assertTrue(
+            helper.enabled,
+            "Helper was unexpectedly disabled"
+        )
 
     def test_deny_aborted(self):
 
@@ -374,6 +388,22 @@ class RequirementsTestCase(TestCase):
             deny requirement. (The rule should not be applied)
         """
 
-        # TODO
+        requirement = self.tool_basic_requirement()
+        requirement.save()
 
-        raise NotImplementedError
+        requirement2 = self.tool_basic_requirement()
+        requirement2.action = constants.REQ_ACTION_DENY
+        requirement2.sender = ".*"
+        requirement2.save()
+
+        helper = self.tool_get_helper()
+
+        helper.connect("", "", "1.1.1.1", "", {})
+        helper.mail_from("test@company.com", {})
+        helper.rcpt("test@company.com", {})
+        helper.eob({})
+
+        self.assertFalse(
+            helper.enabled,
+            "Helper was unexpectedly enabled"
+        )

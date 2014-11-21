@@ -1,5 +1,4 @@
 """ Directory server testing """
-import email
 from email.mime.text import MIMEText
 from unittest import SkipTest
 from django.conf import settings
@@ -199,7 +198,6 @@ class DirectoryServerTestCase(TestCase):
 
         """ If we cannot resolve the sender and set resolution to fail,
             we should get an unmodified mail back.
-        FIXME coverage issue
         """
 
         # Run the real test with a modified, possibly failing address
@@ -212,6 +210,25 @@ class DirectoryServerTestCase(TestCase):
         self.assertEqual(
             returned[0]["repl_body"],
             "%s" % self.test_text,
+            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+        )
+
+    def test_replacement_not_fail(self):
+
+        """ If we cannot resolve the sender and don't set resolution to fail,
+            we should get an modified mail with the unresolvable fields
+            removed back.
+        """
+
+        # Run the real test with a modified, possibly failing address
+
+        returned = self.tool_run_real_test(
+            address="%s|FAILED|" % settings.TEST_DIRECTORY_SERVER["address"],
+        )
+
+        self.assertEqual(
+            returned[0]["repl_body"],
+            "%s\n" % self.test_text,
             "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
         )
 

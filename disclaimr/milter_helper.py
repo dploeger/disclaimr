@@ -219,10 +219,30 @@ class MilterHelper(object):
 
                 rules_blacklist.append(req.rule.id)
 
-            elif req.rule.id not in rules_blacklist\
-                    and req.rule.id not in rules:
+            if req.rule.id not in rules_blacklist\
+               and req.rule.id not in rules:
 
                 rules.append(req.rule.id)
+
+        # Remove rules if they are in the rules black list
+
+        tmp = []
+
+        for rule in rules:
+
+            if rule not in rules_blacklist:
+
+                tmp.append(rule)
+
+        rules = tmp
+
+        if len(rules) == 0:
+
+            # After checking the left over requirements, no rules were left
+            # to run.
+
+            self.enabled = False
+            return
 
         # Transform body into a mime mail to work on it
 
@@ -433,10 +453,6 @@ class MilterHelper(object):
 
                     text = text.decode("utf-8").encode(charset.lower())
 
-                # The disclaimer now has the same encoding as the mail part
-
-                disclaimer_charset = charset.lower()
-
             if do_replace:
 
                 # The disclaimer has replacement tags. Replace them.
@@ -608,6 +624,8 @@ class MilterHelper(object):
                                         )
                                     )
 
+                                    continue
+
                                 elif len(result) > 1:
 
                                     logging.warn(
@@ -647,7 +665,8 @@ class MilterHelper(object):
 
                                 break
 
-                        if result is not None:
+                        if result is not None\
+                           and len(result) == 1:
 
                             # Flatten result into replacement dict and
                             # convert to unicode strings while you're at it
@@ -675,7 +694,6 @@ class MilterHelper(object):
                                             "".join(result[0][1][key])
                                         )
                                     )
-
 
                     if not resolved_successfully and action.resolve_sender_fail:
 

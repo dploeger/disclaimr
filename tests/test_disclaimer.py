@@ -1,5 +1,4 @@
 """ Disclaimer testing """
-import base64
 import email
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -120,6 +119,21 @@ class DisclaimerTestCase(TestCase):
 
         return helper.eob({})
 
+    def tool_make_returned_mail(self, returned):
+
+        headers = []
+
+        for key in self.test_mail.keys():
+
+            headers.append("%s: %s" % (key, self.test_mail[key]))
+
+        return email.message_from_string(
+            "%s\n\n%s" % (
+                "\n".join(headers),
+                returned[0]["repl_body"]
+            )
+        )
+
     def test_basic_add(self):
 
         """ The disclaimer will simply be added to the testmail.
@@ -129,10 +143,10 @@ class DisclaimerTestCase(TestCase):
         returned = self.tool_run_real_test()
 
         self.assertEqual(
-            returned[0]["repl_body"],
-            base64.b64encode(
-                "%s\n%s" % (self.test_text, self.disclaimer.text)
-            ),
+            milter_helper.MilterHelper.decode_mail(
+                self.tool_make_returned_mail(returned)
+            )[1],
+            "%s\n%s" % (self.test_text, self.disclaimer.text),
             "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
         )
 
@@ -140,8 +154,6 @@ class DisclaimerTestCase(TestCase):
 
         """ If we disable the only action, we should get an empty action
             dictionary back
-
-        FIXME Coverage problem
         """
 
         self.action.enabled = False
@@ -153,6 +165,33 @@ class DisclaimerTestCase(TestCase):
         self.assertIsNone(
             returned,
             "We got an action dictionary back! %s" % returned
+        )
+
+    def test_disabled_secondaction(self):
+
+        """ If we add an disabled action to a working set, it should just
+            work fine.
+        """
+
+        action2 = models.Action()
+        action2.rule = self.rule
+        action2.position = 0
+        action2.enabled = False
+        action2.disclaimer = self.disclaimer
+
+        action2.save()
+
+        self.action.position = 1
+        self.action.save()
+
+        returned = self.tool_run_real_test()
+
+        self.assertEqual(
+            milter_helper.MilterHelper.decode_mail(
+                self.tool_make_returned_mail(returned)
+            )[1],
+            "%s\n%s" % (self.test_text, self.disclaimer.text),
+            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
         )
 
     def test_basic_replace(self):
@@ -171,9 +210,15 @@ class DisclaimerTestCase(TestCase):
         returned = self.tool_run_real_test()
 
         self.assertEqual(
-            returned[0]["repl_body"],
-            base64.b64encode("Testmail %s" % self.disclaimer.text),
-            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+            milter_helper.MilterHelper.decode_mail(
+                self.tool_make_returned_mail(returned)
+            )[1],
+            "Testmail %s" % self.disclaimer.text,
+            "Body was unexpectedly modified to %s" % (
+                milter_helper.MilterHelper.decode_mail(
+                    self.tool_make_returned_mail(returned)
+                )[1]
+            )
         )
 
     def test_replacements_add(self):
@@ -190,12 +235,14 @@ class DisclaimerTestCase(TestCase):
         returned = self.tool_run_real_test({"Test": "Test"})
 
         self.assertEqual(
-            returned[0]["repl_body"],
-            base64.b64encode("%s\n%s|%s|Test" % (
+            milter_helper.MilterHelper.decode_mail(
+                self.tool_make_returned_mail(returned)
+            )[1],
+            "%s\n%s|%s|Test" % (
                 self.test_text,
                 self.test_address,
                 self.test_address
-            )),
+            ),
             "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
         )
 
@@ -220,9 +267,12 @@ class DisclaimerTestCase(TestCase):
         returned = self.tool_run_real_test({"Test": "Test"})
 
         self.assertEqual(
-            returned[0]["repl_body"],
-            base64.b64encode(
-                "Testmail %s|%s|Test" % (self.test_address, self.test_address)
+            milter_helper.MilterHelper.decode_mail(
+                self.tool_make_returned_mail(returned)
+            )[1],
+            "Testmail %s|%s|Test" % (
+                self.test_address,
+                self.test_address
             ),
             "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
         )
@@ -238,8 +288,10 @@ class DisclaimerTestCase(TestCase):
         })
 
         self.assertEqual(
-            returned[0]["repl_body"],
-            base64.b64encode("%s\n%s" % (self.test_text, self.disclaimer.text)),
+            milter_helper.MilterHelper.decode_mail(
+                self.tool_make_returned_mail(returned)
+            )[1],
+            "%s\n%s" % (self.test_text, self.disclaimer.text),
             "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
         )
 
@@ -268,23 +320,29 @@ class DisclaimerTestCase(TestCase):
         )
 
         self.assertEqual(
-            returned_mail.get_payload()[0].get_payload(),
-            email.encoders._bencode("%s\n%s" % (test_text, self.disclaimer.text)),
+            milter_helper.MilterHelper.decode_mail(
+                returned_mail.get_payload()[0]
+            )[1],
+            "%s\n%s" % (test_text, self.disclaimer.text),
             "Text-Body was unexpectedly modified to %s" % (
-                base64.b64decode(returned_mail.get_payload()[0].get_payload()),
+                milter_helper.MilterHelper.decode_mail(
+                    returned_mail.get_payload()[0]
+                )[1],
             )
         )
 
         self.assertEqual(
-            returned_mail.get_payload()[1].get_payload(),
-            email.encoders._bencode(
-                "<html><body>\n%s\n<p>%s</p>\n</body></html>\n" % (
-                    test_html,
-                    self.disclaimer.text
-                )
+            milter_helper.MilterHelper.decode_mail(
+                returned_mail.get_payload()[1]
+            )[1],
+            "<html><body>\n%s\n<p>%s</p>\n</body></html>\n" % (
+                test_html,
+                self.disclaimer.text
             ),
             "HTML-Body was unexpectedly modified to %s" % (
-                base64.b64decode(returned_mail.get_payload()[1].get_payload()),
+                milter_helper.MilterHelper.decode_mail(
+                    returned_mail.get_payload()[1]
+                )[1],
             )
         )
 
@@ -299,18 +357,7 @@ class DisclaimerTestCase(TestCase):
 
         returned = self.tool_run_real_test(make_mail=False)
 
-        headers = []
-
-        for key in self.test_mail.keys():
-
-            headers.append("%s: %s" % (key, self.test_mail[key]))
-
-        returned_mail = email.message_from_string(
-            "%s\n\n%s" % (
-                "\n".join(headers),
-                returned[0]["repl_body"]
-            )
-        )
+        returned_mail = self.tool_make_returned_mail(returned)
 
         self.assertEqual(
             milter_helper.MilterHelper.decode_mail(
@@ -329,28 +376,122 @@ class DisclaimerTestCase(TestCase):
 
     def test_unresolvable_tag(self):
 
-        """ Test an unresolvable tag with template_fail=True inside a disclaimer
+        """ Test an unresolvable tag with template_fail=True inside a
+            disclaimer, assuming that the mail isn't modified.
         """
 
-        # TODO
+        self.disclaimer.text = "{FAIL}"
+        self.disclaimer.template_fail = True
+        self.disclaimer.save()
 
-        raise NotImplementedError
+        returned = self.tool_run_real_test()
+        returned_mail = self.tool_make_returned_mail(returned)
+
+        self.assertEqual(
+            milter_helper.MilterHelper.decode_mail(
+                self.test_mail
+            )[1],
+            milter_helper.MilterHelper.decode_mail(
+                returned_mail
+            )[1],
+            "Body was unexpectedly modified to %s" % (
+                milter_helper.MilterHelper.decode_mail(
+                    returned_mail
+                )[1],
+            )
+        )
+
+    def test_unresolvable_tag_nofail(self):
+
+        """ Test an unresolvable tag with template_fail=False inside a
+            disclaimer, assuming that the mail is modified and the
+            unresolvable tag is removed.
+        """
+
+        self.disclaimer.text = "{FAIL}"
+        self.disclaimer.template_fail = False
+        self.disclaimer.save()
+
+        returned = self.tool_run_real_test()
+        returned_mail = self.tool_make_returned_mail(returned)
+
+        self.assertEqual(
+            milter_helper.MilterHelper.decode_mail(
+                returned_mail
+            )[1],
+            "%s\n" % self.test_text,
+            "Body was unexpectedly modified to %s" % (
+                milter_helper.MilterHelper.decode_mail(
+                    returned_mail
+                )[1],
+            )
+        )
 
     def test_unresolvable_subtag(self):
 
         """ Test an unresolvable subtag with template_fail=True
-            inside a disclaimer
+            inside a disclaimer assuming it will return an unmodified mail
         """
 
-        # TODO
+        self.disclaimer.text = "{FAIL[\"FAIL\"]}"
+        self.disclaimer.template_fail = True
+        self.disclaimer.save()
 
-        raise NotImplementedError
+        returned = self.tool_run_real_test()
+        returned_mail = self.tool_make_returned_mail(returned)
 
-    def test_charset(self):
+        self.assertEqual(
+            milter_helper.MilterHelper.decode_mail(
+                self.test_mail
+            )[1],
+            milter_helper.MilterHelper.decode_mail(
+                returned_mail
+            )[1],
+            "Body was unexpectedly modified to %s" % (
+                milter_helper.MilterHelper.decode_mail(
+                    returned_mail
+                )[1],
+            )
+        )
 
-        """ Test a mail with a non-utf8-charset
+    def test_quoted_printable(self):
+
+        """ Use a "quoted printable"-encoded mail as a test mail
         """
 
-        # TODO
+        self.test_mail = MIMEText(self.test_text, "plain", "iso-8859-1")
 
-        raise NotImplementedError
+        returned = self.tool_run_real_test(make_mail=False)
+
+        self.assertEqual(
+            milter_helper.MilterHelper.decode_mail(
+                self.tool_make_returned_mail(returned)
+            )[1],
+            "%s\n%s" % (self.test_text, self.disclaimer.text),
+            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+        )
+
+    def test_html_disclaimer(self):
+
+        """ Test a HTML (not "use text") disclaimer
+        """
+
+        self.disclaimer.html_use_text = False
+        self.disclaimer.html = "<b>TEST-DISCLAIMER</b>"
+
+        self.disclaimer.save()
+
+        self.test_mail = MIMEText("<p>%s</p>" % self.test_text, "html")
+
+        returned = self.tool_run_real_test(make_mail=False)
+
+        self.assertEqual(
+            milter_helper.MilterHelper.decode_mail(
+                self.tool_make_returned_mail(returned)
+            )[1],
+            "<html><body>\n<p>%s</p>\n%s\n</body></html>\n" % (
+                self.test_text,
+                self.disclaimer.html
+            ),
+            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+        )
