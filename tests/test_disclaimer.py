@@ -1,4 +1,8 @@
 """ Disclaimer testing """
+import base64
+import email
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 from django.test import TestCase
 from disclaimrwebadmin import models, constants
@@ -66,7 +70,19 @@ class DisclaimerTestCase(TestCase):
 
         return helper
 
-    def tool_run_real_test(self, header=None):
+    def tool_add_bodies(self, helper, mail):
+
+        if mail.is_multipart():
+
+            for payload in mail.get_payload():
+
+                self.tool_add_bodies(helper, payload)
+
+        else:
+
+            helper.body(mail.as_string(), {})
+
+    def tool_run_real_test(self, header=None, make_mail=True):
 
         """ Runs the test using the milter helper and returns the
             action dictionary of eob
@@ -88,7 +104,19 @@ class DisclaimerTestCase(TestCase):
 
             helper.eoh({})
 
-        helper.body(self.test_text, {})
+        else:
+
+            # Add at least one header for proper mail processing
+
+            helper.header("From", "nobody", {})
+            helper.eoh({})
+
+        if make_mail:
+
+            self.test_mail = MIMEText(self.test_text, "plain", "UTF-8")
+
+        helper.body(self.test_mail.as_string(), {})
+
         return helper.eob({})
 
     def test_basic_add(self):
@@ -101,7 +129,9 @@ class DisclaimerTestCase(TestCase):
 
         self.assertEqual(
             returned[0]["repl_body"],
-            "\n%s\n%s" % (self.test_text, self.disclaimer.text),
+            base64.b64encode(
+                "%s\n%s" % (self.test_text, self.disclaimer.text)
+            ),
             "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
         )
 
@@ -141,7 +171,7 @@ class DisclaimerTestCase(TestCase):
 
         self.assertEqual(
             returned[0]["repl_body"],
-            "\nTestmail %s" % self.disclaimer.text,
+            base64.b64encode("Testmail %s" % self.disclaimer.text),
             "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
         )
 
@@ -160,11 +190,11 @@ class DisclaimerTestCase(TestCase):
 
         self.assertEqual(
             returned[0]["repl_body"],
-            "\n%s\n%s|%s|Test" % (
+            base64.b64encode("%s\n%s|%s|Test" % (
                 self.test_text,
                 self.test_address,
                 self.test_address
-            ),
+            )),
             "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
         )
 
@@ -190,55 +220,106 @@ class DisclaimerTestCase(TestCase):
 
         self.assertEqual(
             returned[0]["repl_body"],
-            "\nTestmail %s|%s|Test" % (self.test_address, self.test_address),
+            base64.b64encode(
+                "Testmail %s|%s|Test" % (self.test_address, self.test_address)
+            ),
             "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
         )
 
     def test_multiple_headers(self):
 
         """ Test a mail with multiple headers
-        TODO
         """
 
-        pass
+        returned = self.tool_run_real_test(header={
+            "X-TEST1": "TEST",
+            "X-TEST2": "TEST"
+        })
+
+        self.assertEqual(
+            returned[0]["repl_body"],
+            base64.b64encode("%s\n%s" % (self.test_text, self.disclaimer.text)),
+            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+        )
 
     def test_multipart(self):
 
         """ Test a multipart mail
-        TODO
         """
 
-        pass
+        test_text = "TestPlain"
+        test_html = "<p>TestHTML</p>"
+
+        text_part = MIMEText(test_text, "plain", "UTF-8")
+        html_part = MIMEText(test_html, "html", "UTF-8")
+
+        self.test_mail = MIMEMultipart("alternative")
+        self.test_mail.attach(text_part)
+        self.test_mail.attach(html_part)
+
+        returned = self.tool_run_real_test(make_mail=False)
+
+        returned_mail = email.message_from_string(
+            "From: nobody\nMIME-Version: 1.0\nContent-Type: %s\n\n%s" % (
+                self.test_mail["Content-Type"],
+                returned[0]["repl_body"]
+            )
+        )
+
+        self.assertEqual(
+            returned_mail.get_payload()[0].get_payload(),
+            email.encoders._bencode("%s\n%s" % (test_text, self.disclaimer.text)),
+            "Text-Body was unexpectedly modified to %s" % (
+                base64.b64decode(returned_mail.get_payload()[0].get_payload()),
+            )
+        )
+
+        self.assertEqual(
+            returned_mail.get_payload()[1].get_payload(),
+            email.encoders._bencode(
+                "<html><body>\n%s\n<p>%s</p>\n</body></html>\n" % (
+                    test_html,
+                    self.disclaimer.text
+                )
+            ),
+            "HTML-Body was unexpectedly modified to %s" % (
+                base64.b64decode(returned_mail.get_payload()[1].get_payload()),
+            )
+        )
 
     def test_html(self):
 
         """ Test a HTML mail with an HTML disclaimer
-        TODO
         """
 
-        pass
+        # TODO
+
+        raise NotImplementedError
 
     def test_unresolvable_tag(self):
 
         """ Test an unresolvable tag with template_fail=True inside a disclaimer
-        TODO
         """
 
-        pass
+        # TODO
+
+        raise NotImplementedError
 
     def test_unresolvable_subtag(self):
 
         """ Test an unresolvable subtag with template_fail=True
             inside a disclaimer
-        TODO
         """
 
-        pass
+        # TODO
+
+        raise NotImplementedError
 
     def test_charset(self):
 
         """ Test a mail with a non-utf8-charset
-        TODO
         """
 
-        pass
+        # TODO
+
+        raise NotImplementedError

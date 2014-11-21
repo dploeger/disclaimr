@@ -362,16 +362,18 @@ class RequirementsTestCase(TestCase):
 
         """ Test a rule with multiple requirements and a skipped deny
             requirement. (The rule should be applied)
-        TODO
         """
 
-        pass
+        # TODO
+
+        raise NotImplementedError
 
     def test_deny_aborted(self):
 
         """ Test a rule with multiple requirements and a skipped
             deny requirement. (The rule should not be applied)
-        TODO
         """
 
-        pass
+        # TODO
+
+        raise NotImplementedError

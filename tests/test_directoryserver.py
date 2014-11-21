@@ -1,4 +1,6 @@
 """ Directory server testing """
+import email
+from email.mime.text import MIMEText
 from unittest import SkipTest
 from django.conf import settings
 
@@ -81,13 +83,13 @@ class DirectoryServerTestCase(TestCase):
 
         self.directory_server.save()
 
-        directory_server_url = models.DirectoryServerURL()
+        self.directory_server_url = models.DirectoryServerURL()
 
-        directory_server_url.directory_server = self.directory_server
-        directory_server_url.url = settings.TEST_DIRECTORY_SERVER["url"]
-        directory_server_url.position = 0
+        self.directory_server_url.directory_server = self.directory_server
+        self.directory_server_url.url = settings.TEST_DIRECTORY_SERVER["url"]
+        self.directory_server_url.position = 0
 
-        directory_server_url.save()
+        self.directory_server_url.save()
 
         # Build action
 
@@ -129,7 +131,7 @@ class DirectoryServerTestCase(TestCase):
 
         return helper
 
-    def tool_run_real_test(self, address=None):
+    def tool_run_real_test(self, address=None, sender_fail=False):
 
         """ Runs the test using the milter helper and returns the action
             dictionary of eob
@@ -141,12 +143,20 @@ class DirectoryServerTestCase(TestCase):
 
             address = settings.TEST_DIRECTORY_SERVER["address"]
 
+        if sender_fail:
+
+            action = models.Action.objects.filter(rule__id=self.rule.id)[0]
+            action.resolve_sender_fail = sender_fail
+            action.save()
+
         helper = self.tool_get_helper()
 
         helper.connect("", "", "1.1.1.1", "", {})
         helper.mail_from(address, {})
         helper.rcpt(address, {})
-        helper.body(self.test_text, {})
+        helper.header("From", "nobody", {})
+        helper.eoh({})
+        helper.body(MIMEText(self.test_text).as_string(), {})
         return helper.eob({})
 
     def test_disabled_directoryserver(self):
@@ -165,7 +175,7 @@ class DirectoryServerTestCase(TestCase):
 
         self.assertEqual(
             returned[0]["repl_body"],
-            "\n%s\n" % self.test_text,
+            "%s\n" % self.test_text,
             "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
         )
 
@@ -178,7 +188,7 @@ class DirectoryServerTestCase(TestCase):
 
         self.assertEqual(
             returned[0]["repl_body"],
-            "\n%s\n%s" % (
+            "%s\n%s" % (
                 self.test_text,
                 settings.TEST_DIRECTORY_SERVER["value"]
             ),
@@ -192,19 +202,16 @@ class DirectoryServerTestCase(TestCase):
         FIXME coverage issue
         """
 
-        action = models.Action.objects.filter(rule__id=self.rule.id)[0]
-        action.resolve_sender_fail = True
-        action.save()
-
         # Run the real test with a modified, possibly failing address
 
         returned = self.tool_run_real_test(
-            address="%s|FAILED|" % settings.TEST_DIRECTORY_SERVER["address"]
+            address="%s|FAILED|" % settings.TEST_DIRECTORY_SERVER["address"],
+            sender_fail=True
         )
 
         self.assertEqual(
             returned[0]["repl_body"],
-            "\n%s" % self.test_text,
+            "%s" % self.test_text,
             "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
         )
 
@@ -298,26 +305,62 @@ class DirectoryServerTestCase(TestCase):
     def test_unreachable(self):
 
         """ Test an unreachable directory server
-        TODO
         """
 
-        pass
+        # Replace the directory server url with something invalid
+
+        self.directory_server_url.url = "ldap://1.1.1.1"
+        self.directory_server_url.save()
+
+        # Run the real test and expect it to not modify the body
+
+        returned = self.tool_run_real_test(sender_fail=True)
+
+        self.assertEqual(
+            returned[0]["repl_body"],
+            "%s" % self.test_text,
+            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+        )
 
     def test_invalid_auth(self):
 
-        """ Test invalid username/passwort for a directory server
-        TODO
+        """ Test invalid username/password for a directory server
         """
 
-        pass
+        self.directory_server.userdn = "FAULT"
+        self.directory_server.password = "FAULT"
+        self.directory_server.save()
+
+        # Run the real test with a modified, possibly failing address
+
+        returned = self.tool_run_real_test(sender_fail=True)
+
+        self.assertEqual(
+            returned[0]["repl_body"],
+            "%s" % self.test_text,
+            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+        )
 
     def test_unreachable_guest(self):
 
         """ Test an unreachable directory server without simple auth
-        TODO
         """
 
-        pass
+        self.directory_server_url.url = "ldap://1.1.1.1"
+        self.directory_server_url.save()
+
+        self.directory_server.auth = constants.DIR_AUTH_NONE
+        self.directory_server.save()
+
+        # Run the real test with a modified, possibly failing address
+
+        returned = self.tool_run_real_test(sender_fail=True)
+
+        self.assertEqual(
+            returned[0]["repl_body"],
+            "%s" % self.test_text,
+            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+        )
 
     def test_invalid_auth_guest(self):
 
@@ -325,23 +368,35 @@ class DirectoryServerTestCase(TestCase):
         simple auth. Disabling simple auth on the directory
         server when connecting to a simple-auth-requiring ldap server should be
         a sufficient test.
-        TODO
         """
 
-        pass
+        self.directory_server.auth = constants.DIR_AUTH_NONE
+        self.directory_server.save()
 
-    def test_unresolvable(self):
+        # Run the real test with a modified, possibly failing address
 
-        """ Test for an unresolvable address in the directory server
-        TODO
-        """
+        returned = self.tool_run_real_test(sender_fail=True)
 
-        pass
+        self.assertEqual(
+            returned[0]["repl_body"],
+            "%s" % self.test_text,
+            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+        )
 
     def test_multiple(self):
 
         """ Test for multiple resolved addresses
-        TODO
         """
 
-        pass
+        # Broaden the search query a bit...
+
+        self.directory_server.search_query = "(|(objectclass=*)(mail=%s))"
+        self.directory_server.save()
+
+        returned = self.tool_run_real_test(sender_fail=True)
+
+        self.assertEqual(
+            returned[0]["repl_body"],
+            "%s" % self.test_text,
+            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+        )
