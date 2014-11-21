@@ -375,17 +375,29 @@ class MilterHelper(object):
 
             # Optionally recode text to match mail part encoding
 
-            if mail.get_content_charset() != "" \
-               and mail.get_content_charset().lower() != \
-                    disclaimer_charset.lower():
+            charset = mail.get_content_charset()
 
-                text = text.decode(
-                    disclaimer_charset.lower()
-                ).encode(mail.get_content_charset().lower())
+            if charset is None or charset == "":
+
+                charset = "us-ascii"
+
+            if not charset.lower() == disclaimer_charset.lower():
+
+                if isinstance(text, unicode):
+
+                    # unicode strings can directly be encoded
+
+                    text = text.encode(charset.lower(), "replace")
+
+                else:
+
+                    # Convert string to unicode string and encode it afterwards
+
+                    text = text.decode("utf-8").encode(charset.lower())
 
                 # The disclaimer now has the same encoding as the mail part
 
-                disclaimer_charset = mail.get_content_charset().lower()
+                disclaimer_charset = charset.lower()
 
             if do_replace:
 
@@ -604,12 +616,28 @@ class MilterHelper(object):
 
                             for key in result[0][1].keys():
 
-                                replacements["resolver"][
-                                    key.lower()
-                                ] = unicode(
-                                    ",".join(result[0][1][key]),
-                                    "utf-8"
-                                )
+                                try:
+
+                                    replacements["resolver"][
+                                        key.lower()
+                                    ] = unicode(
+                                        ",".join(result[0][1][key]),
+                                        "utf-8"
+                                    )
+
+                                except UnicodeDecodeError:
+
+                                    # There's probably a binary string there.
+                                    # Encode it in base64
+
+                                    replacements["resolver"][
+                                        key.lower()
+                                    ] = unicode(
+                                        base64.b64encode(
+                                            "".join(result[0][1][key])
+                                        )
+                                    )
+
 
                     if not resolved_successfully and action.resolve_sender_fail:
 
@@ -752,7 +780,7 @@ class MilterHelper(object):
 
             # Convert to unicode string, if the mail's in utf-8
 
-            if mail.get_content_charset().lower() == "utf-8":
+            if charset.lower() == "utf-8":
 
                 new_text = unicode(new_text, "utf-8")
 
@@ -820,7 +848,7 @@ class MilterHelper(object):
 
             # Convert from unicode string, if mail encoding is utf-8
 
-            if mail.get_content_charset().lower() == "utf-8":
+            if charset.lower() == "utf-8":
 
                 new_text = new_text.encode("utf-8")
 
