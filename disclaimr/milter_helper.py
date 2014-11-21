@@ -331,6 +331,8 @@ class MilterHelper(object):
 
         if mail.is_multipart():
 
+            # This is a multipart, recurse through the subparts
+
             for payload in mail.get_payload():
 
                 self.do_action(payload, action)
@@ -371,18 +373,23 @@ class MilterHelper(object):
 
                 do_replace = action.disclaimer.html_use_template
 
-            # Optionally recode text
+            # Optionally recode text to match mail part encoding
 
-            if mail.get_content_charset() != "" and \
-                    mail.get_content_charset().lower() != \
+            if mail.get_content_charset() != "" \
+               and mail.get_content_charset().lower() != \
                     disclaimer_charset.lower():
 
-                text = text.decode(disclaimer_charset.lower()).encode(
-                    mail.get_content_charset().lower())
+                text = text.decode(
+                    disclaimer_charset.lower()
+                ).encode(mail.get_content_charset().lower())
+
+                # The disclaimer now has the same encoding as the mail part
 
                 disclaimer_charset = mail.get_content_charset().lower()
 
             if do_replace:
+
+                # The disclaimer has replacement tags. Replace them.
 
                 logging.debug("Building replacement dictionary")
 
@@ -397,9 +404,8 @@ class MilterHelper(object):
 
                 if action.resolve_sender:
 
-                    # Fill resolver dictionary
-
-                    logging.info("Connecting to directory server")
+                    # We should resolve the sender. Add resolver replacements
+                    # to the replacement dictionary
 
                     resolved_successfully = False
 
@@ -407,7 +413,19 @@ class MilterHelper(object):
 
                         if not directory_server.enabled:
 
+                            # Directory server is disabled. Skip.
+
+                            logging.debug(
+                                "Directory server %s is disabled. Skipping." %
+                                directory_server.name
+                            )
+
                             continue
+
+                        logging.info(
+                            "Connecting to directory server %s" %
+                            directory_server.name
+                        )
 
                         # The query we need to run against the directory server
 
@@ -421,14 +439,20 @@ class MilterHelper(object):
 
                         if directory_server.enable_cache:
 
+                            # Yes. Fetch it from the cache
+
                             result = QueryCache.get(directory_server, query)
                             resolved_successfully = True
 
                         if result is None:
 
+                            # No. Fetch it from the server
+
                             urls = directory_server.directoryserverurl_set.all()
 
                             for url in urls:
+
+                                # Try the different URLs of the server
 
                                 logging.debug("Trying url %s" % url.url)
 
@@ -439,6 +463,8 @@ class MilterHelper(object):
 
                                 if directory_server.auth == \
                                         constants.DIR_AUTH_SIMPLE:
+
+                                    # The directory server needs simple auth
 
                                     ldap_user = directory_server.userdn
                                     ldap_password = directory_server.password
@@ -480,6 +506,8 @@ class MilterHelper(object):
                                     continue
 
                                 try:
+
+                                    # Send the query
 
                                     result = conn.search_s(
                                         directory_server.base_dn,
@@ -549,7 +577,7 @@ class MilterHelper(object):
 
                                         return
 
-                                # Flatten result into replacement dict
+                                # Found something.
 
                                 logging.debug("Found entry %s" % result[0][0])
 
@@ -565,16 +593,27 @@ class MilterHelper(object):
 
                                 resolved_successfully = True
 
+                                # Resolved successfully. Break this loop
+
+                                break
+
                         if result is not None:
+
+                            # Flatten result into replacement dict and
+                            # convert to unicode strings while you're at it
 
                             for key in result[0][1].keys():
 
                                 replacements["resolver"][
                                     key.lower()
-                                ] = (",".join(result[0][1][key])).decode(
-                                    "utf-8")
+                                ] = unicode(
+                                    ",".join(result[0][1][key]),
+                                    "utf-8"
+                                )
 
                     if not resolved_successfully and action.resolve_sender_fail:
+
+                        # We didn't reach any directory server (url).
 
                         logging.warn(
                             "Cannot resolve email %s. "
@@ -587,11 +626,11 @@ class MilterHelper(object):
 
                 logging.debug("Replacing template text")
 
-                # A template {key}
+                # A template tag like {key}
 
                 template = re.compile("\{([^}]*)\}")
 
-                # A template referring to a dictionary: {key["test"]}
+                # A template tag referring to a dictionary like {key["test"]}
 
                 subkey_template = re.compile("^([^\[]*)\[\"([^\"]*)\"\]$")
 
@@ -669,20 +708,13 @@ class MilterHelper(object):
                         value
                     )
 
-            # Make a HTML from the disclaimer, if we wanted to use the text part
+            # If the HTML disclaimer should be the same as the text
+            # disclaimer, reformat it to make it HTML-usable
 
             if mail.get_content_type().lower() == "text/html" \
                     and action.disclaimer.html_use_text:
 
                 text = self.make_html(text)
-
-            # Optionally convert the text back to the mail's charcode
-
-            dest_charset = mail.get_charset()
-
-            if dest_charset:
-
-                text = dest_charset.convert(text)
 
             # Carry out the action
 
@@ -692,7 +724,7 @@ class MilterHelper(object):
 
             mail_text = mail.get_payload()
 
-            # Decode string, if non-7/8-bit was used
+            # Decode mail text, if non-7/8-bit was used for transfer
 
             if "Content-Transfer-Encoding" in mail:
 
@@ -716,38 +748,38 @@ class MilterHelper(object):
 
                 encoding = "78bit"
 
-            mail_text = mail_text.decode(disclaimer_charset)
-
             new_text = mail_text
 
-            if mail.get_content_type().lower() == "text/plain":
+            # Convert to unicode string, if the mail's in utf-8
 
-                if action.action == constants.ACTION_ACTION_ADD:
+            if mail.get_content_charset().lower() == "utf-8":
 
-                    # text/plain can simply be added
+                new_text = unicode(new_text, "utf-8")
+
+            if action.action == constants.ACTION_ACTION_REPLACETAG:
+
+                new_text = re.sub(
+                    action.action_parameters,
+                    text,
+                    new_text
+                )
+
+            elif action.action == constants.ACTION_ACTION_ADD:
+
+                if mail.get_content_type().lower() == "text/plain":
+
+                    # text/plain can simply be concatenated
 
                     new_text = "%s\n%s" % (mail_text, text)
 
-                elif action.action == constants.ACTION_ACTION_REPLACETAG:
+                elif mail.get_content_type().lower() == "text/html":
 
-                    # text/plain can simply be replaced
+                    # text/html has to been put before the closing body-tag,
+                    # so parse the text
 
-                    new_text = re.sub(
-                        action.action_parameters,
-                        text,
-                        mail_text
-                    )
+                    html_part = etree.HTML(mail_text)
 
-            elif mail.get_content_type().lower() == "text/html":
-
-                # text/html has to been put before the closing body-tag,
-                # so parse the text
-
-                html_part = etree.HTML(mail_text)
-
-                disclaimer_part = etree.HTML(text)
-
-                if action.action == constants.ACTION_ACTION_ADD:
+                    disclaimer_part = etree.HTML(text)
 
                     if len(html_part.xpath("body")) > 0:
 
@@ -771,23 +803,30 @@ class MilterHelper(object):
                         method="html"
                     )
 
-                elif action.action == constants.ACTION_ACTION_REPLACETAG:
+                else:
 
-                    # For replacing, we'll just replace tag in the plain
-                    # html string with the disclaimer html string
-
-                    new_text = re.sub(
-                        action.action_parameters,
-                        etree.tostring(
-                            disclaimer_part.xpath("body")[
-                                0
-                            ].getchildren()[0]).decode(disclaimer_charset),
-                        new_text
+                    logging.info(
+                        "Unsupported content type %s found. Skipping "
+                        "disclaimer." % mail.get_content_type()
                     )
+
+                    return
+
+            else:
+
+                logging.error("Invalid action value %d" % action.action)
+
+                return
+
+            # Convert from unicode string, if mail encoding is utf-8
+
+            if mail.get_content_charset().lower() == "utf-8":
+
+                new_text = new_text.encode("utf-8")
 
             # Set payload to new text
 
-            mail.set_payload(new_text.encode(disclaimer_charset))
+            mail.set_payload(new_text)
 
             if "Content-Transfer-Encoding" in mail:
 
