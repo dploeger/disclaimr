@@ -5,6 +5,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 from django.test import TestCase
+from disclaimr import milter_helper
 from disclaimrwebadmin import models, constants
 from disclaimr.configuration_helper import build_configuration
 from disclaimr.milter_helper import MilterHelper
@@ -292,9 +293,39 @@ class DisclaimerTestCase(TestCase):
         """ Test a HTML mail with an HTML disclaimer
         """
 
-        # TODO
+        test_html = "<p>TestHTML</p>"
 
-        raise NotImplementedError
+        self.test_mail = MIMEText(test_html, "html", "UTF-8")
+
+        returned = self.tool_run_real_test(make_mail=False)
+
+        headers = []
+
+        for key in self.test_mail.keys():
+
+            headers.append("%s: %s" % (key, self.test_mail[key]))
+
+        returned_mail = email.message_from_string(
+            "%s\n\n%s" % (
+                "\n".join(headers),
+                returned[0]["repl_body"]
+            )
+        )
+
+        self.assertEqual(
+            milter_helper.MilterHelper.decode_mail(
+                returned_mail
+            )[1],
+            "<html><body>\n%s\n<p>%s</p>\n</body></html>\n" % (
+                test_html,
+                self.disclaimer.text
+            ),
+            "HTML-Body was unexpectedly modified to %s" % (
+                milter_helper.MilterHelper.decode_mail(
+                    returned_mail
+                )[1]
+            )
+        )
 
     def test_unresolvable_tag(self):
 

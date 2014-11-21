@@ -319,6 +319,44 @@ class MilterHelper(object):
 
         return text
 
+    @staticmethod
+    def decode_mail(mail):
+
+        """ Takes a email.mime.Message and decodes the payload according to
+        the Content-Transfer-Encoding header
+
+        :param mail: The message (part)
+        :return: A tuple of the found encoding and the decoded payload
+        """
+
+        mail_text = mail.get_payload()
+
+        # Decode mail text, if non-7/8-bit was used for transfer
+
+        if "Content-Transfer-Encoding" in mail:
+
+            encoding = mail["Content-Transfer-Encoding"].lower()
+
+            if encoding == "quoted-printable":
+
+                mail_text = quopri.decodestring(mail_text)
+
+            elif encoding == "base64":
+
+                mail_text = base64.b64decode(mail.get_payload())
+
+            else:
+
+                # 7 or 8 bit
+
+                encoding = "78bit"
+
+        else:
+
+            encoding = "78bit"
+
+        return encoding, mail_text
+
     def do_action(self, mail, action):
 
         """ Apply an action on a mail (optionally recursing through the
@@ -750,33 +788,7 @@ class MilterHelper(object):
                 "Adding Disclaimer %s to body" % action.disclaimer.name
             )
 
-            mail_text = mail.get_payload()
-
-            # Decode mail text, if non-7/8-bit was used for transfer
-
-            if "Content-Transfer-Encoding" in mail:
-
-                encoding = mail["Content-Transfer-Encoding"].lower()
-
-                if encoding == "quoted-printable":
-
-                    mail_text = quopri.decodestring(mail_text)
-
-                elif encoding == "base64":
-
-                    mail_text = base64.b64decode(mail.get_payload())
-
-                else:
-
-                    # 7 or 8 bit
-
-                    encoding = "78bit"
-
-            else:
-
-                encoding = "78bit"
-
-            new_text = mail_text
+            (encoding, new_text) = self.decode_mail(mail)
 
             # Convert to unicode string, if the mail's in utf-8
 
@@ -798,14 +810,14 @@ class MilterHelper(object):
 
                     # text/plain can simply be concatenated
 
-                    new_text = "%s\n%s" % (mail_text, text)
+                    new_text = "%s\n%s" % (new_text, text)
 
                 elif mail.get_content_type().lower() == "text/html":
 
                     # text/html has to been put before the closing body-tag,
                     # so parse the text
 
-                    html_part = etree.HTML(mail_text)
+                    html_part = etree.HTML(new_text)
 
                     disclaimer_part = etree.HTML(text)
 
