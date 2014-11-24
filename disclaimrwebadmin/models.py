@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 import netaddr
+from sortable.models import Sortable
 import constants
 
 
@@ -21,6 +22,23 @@ class Rule(models.Model):
         help_text=_("The description of this rule."),
         blank=True
     )
+
+    position = models.PositiveIntegerField(
+        _("position"),
+        help_text=_("The position inside the rule processor"),
+        default=0
+    )
+
+    continue_rules = models.BooleanField(
+        _("Continue after this rule"),
+        help_text=_("Continue with other possibly matching rules after this "
+                    "one is processed?"),
+        default=False
+    )
+
+    class Meta():
+
+        ordering = ["position"]
 
     def __unicode__(self):
 
@@ -363,6 +381,10 @@ class Action(models.Model):
                 constants.ACTION_ACTION_ADD,
                 _("Add a disclaimer string to the body")
             ),
+            (
+                constants.ACTION_ACTION_ADDPART,
+                _("Add the disclaimer using an additional MIME part")
+            )
         ),
         default=constants.ACTION_ACTION_ADD
     )

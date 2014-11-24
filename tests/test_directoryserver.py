@@ -173,9 +173,9 @@ class DirectoryServerTestCase(TestCase):
         returned = self.tool_run_real_test()
 
         self.assertEqual(
-            returned[0]["repl_body"],
+            returned["repl_body"],
             "%s\n" % self.test_text,
-            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+            "Body was unexpectedly modified to %s" % returned["repl_body"]
         )
 
     def test_replacement(self):
@@ -186,12 +186,12 @@ class DirectoryServerTestCase(TestCase):
         returned = self.tool_run_real_test()
 
         self.assertEqual(
-            returned[0]["repl_body"],
+            returned["repl_body"],
             "%s\n%s" % (
                 self.test_text,
                 settings.TEST_DIRECTORY_SERVER["value"]
             ),
-            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+            "Body was unexpectedly modified to %s" % returned["repl_body"]
         )
 
     def test_replacement_fail(self):
@@ -208,9 +208,9 @@ class DirectoryServerTestCase(TestCase):
         )
 
         self.assertEqual(
-            returned[0]["repl_body"],
+            returned["repl_body"],
             "%s" % self.test_text,
-            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+            "Body was unexpectedly modified to %s" % returned["repl_body"]
         )
 
     def test_replacement_not_fail(self):
@@ -227,9 +227,9 @@ class DirectoryServerTestCase(TestCase):
         )
 
         self.assertEqual(
-            returned[0]["repl_body"],
+            returned["repl_body"],
             "%s\n" % self.test_text,
-            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+            "Body was unexpectedly modified to %s" % returned["repl_body"]
         )
 
     def test_caching(self):
@@ -334,9 +334,9 @@ class DirectoryServerTestCase(TestCase):
         returned = self.tool_run_real_test(sender_fail=True)
 
         self.assertEqual(
-            returned[0]["repl_body"],
+            returned["repl_body"],
             "%s" % self.test_text,
-            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+            "Body was unexpectedly modified to %s" % returned["repl_body"]
         )
 
     def test_invalid_auth(self):
@@ -353,9 +353,9 @@ class DirectoryServerTestCase(TestCase):
         returned = self.tool_run_real_test(sender_fail=True)
 
         self.assertEqual(
-            returned[0]["repl_body"],
+            returned["repl_body"],
             "%s" % self.test_text,
-            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+            "Body was unexpectedly modified to %s" % returned["repl_body"]
         )
 
     def test_unreachable_guest(self):
@@ -374,9 +374,9 @@ class DirectoryServerTestCase(TestCase):
         returned = self.tool_run_real_test(sender_fail=True)
 
         self.assertEqual(
-            returned[0]["repl_body"],
+            returned["repl_body"],
             "%s" % self.test_text,
-            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+            "Body was unexpectedly modified to %s" % returned["repl_body"]
         )
 
     def test_invalid_auth_guest(self):
@@ -395,9 +395,9 @@ class DirectoryServerTestCase(TestCase):
         returned = self.tool_run_real_test(sender_fail=True)
 
         self.assertEqual(
-            returned[0]["repl_body"],
+            returned["repl_body"],
             "%s" % self.test_text,
-            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+            "Body was unexpectedly modified to %s" % returned["repl_body"]
         )
 
     def test_multiple(self):
@@ -413,7 +413,7 @@ class DirectoryServerTestCase(TestCase):
         returned = self.tool_run_real_test(sender_fail=True)
 
         self.assertEqual(
-            returned[0]["repl_body"],
+            returned["repl_body"],
             "%s" % self.test_text,
-            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+            "Body was unexpectedly modified to %s" % returned["repl_body"]
         )

@@ -1,3 +1,4 @@
+from adminsortable.admin import SortableAdminMixin
 from django import forms
 from django.contrib import admin
 from django.forms import PasswordInput
@@ -31,7 +32,7 @@ class DirectoryServerURLInline(
 
 
 @admin.register(Rule)
-class RuleAdmin(admin.ModelAdmin):
+class RuleAdmin(SortableAdminMixin, admin.ModelAdmin):
 
     inlines = [
         RequirementInline,

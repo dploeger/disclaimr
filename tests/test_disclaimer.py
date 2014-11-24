@@ -125,12 +125,32 @@ class DisclaimerTestCase(TestCase):
 
         for key in self.test_mail.keys():
 
-            headers.append("%s: %s" % (key, self.test_mail[key]))
+            # Skip deleted headers
+
+            if "delete_header" in returned and key in returned["delete_header"]:
+
+                continue
+
+            value = self.test_mail[key]
+
+            # Change headers
+
+            if "change_header" in returned and key in returned["change_header"]:
+
+                value = returned["change_header"][key]
+
+            headers.append("%s: %s" % (key, value))
+
+        if "add_header" in returned:
+
+            for key in returned["add_header"]:
+
+                headers.append("%s: %s" % (key, returned["add_header"][key]))
 
         return email.message_from_string(
             "%s\n\n%s" % (
                 "\n".join(headers),
-                returned[0]["repl_body"]
+                returned["repl_body"]
             )
         )
 
@@ -147,7 +167,11 @@ class DisclaimerTestCase(TestCase):
                 self.tool_make_returned_mail(returned)
             )[1],
             "%s\n%s" % (self.test_text, self.disclaimer.text),
-            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+            "Body was unexpectedly modified to %s" % (
+                milter_helper.MilterHelper.decode_mail(
+                    self.tool_make_returned_mail(returned)
+                )[1],
+            )
         )
 
     def test_disabled_action(self):
@@ -191,7 +215,11 @@ class DisclaimerTestCase(TestCase):
                 self.tool_make_returned_mail(returned)
             )[1],
             "%s\n%s" % (self.test_text, self.disclaimer.text),
-            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+            "Body was unexpectedly modified to %s" % (
+                milter_helper.MilterHelper.decode_mail(
+                    self.tool_make_returned_mail(returned)
+                )[1],
+            )
         )
 
     def test_basic_replace(self):
@@ -243,7 +271,11 @@ class DisclaimerTestCase(TestCase):
                 self.test_address,
                 self.test_address
             ),
-            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+            "Body was unexpectedly modified to %s" % (
+                milter_helper.MilterHelper.decode_mail(
+                    self.tool_make_returned_mail(returned)
+                )[1],
+            )
         )
 
     def test_replacements_replace(self):
@@ -274,7 +306,11 @@ class DisclaimerTestCase(TestCase):
                 self.test_address,
                 self.test_address
             ),
-            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+            "Body was unexpectedly modified to %s" % (
+                milter_helper.MilterHelper.decode_mail(
+                    self.tool_make_returned_mail(returned)
+                )[1],
+            )
         )
 
     def test_multiple_headers(self):
@@ -292,7 +328,11 @@ class DisclaimerTestCase(TestCase):
                 self.tool_make_returned_mail(returned)
             )[1],
             "%s\n%s" % (self.test_text, self.disclaimer.text),
-            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+            "Body was unexpectedly modified to %s" % (
+                milter_helper.MilterHelper.decode_mail(
+                    self.tool_make_returned_mail(returned)
+                )[1],
+            )
         )
 
     def test_multipart(self):
@@ -312,12 +352,7 @@ class DisclaimerTestCase(TestCase):
 
         returned = self.tool_run_real_test(make_mail=False)
 
-        returned_mail = email.message_from_string(
-            "From: nobody\nMIME-Version: 1.0\nContent-Type: %s\n\n%s" % (
-                self.test_mail["Content-Type"],
-                returned[0]["repl_body"]
-            )
-        )
+        returned_mail = self.tool_make_returned_mail(returned)
 
         self.assertEqual(
             milter_helper.MilterHelper.decode_mail(
@@ -468,7 +503,11 @@ class DisclaimerTestCase(TestCase):
                 self.tool_make_returned_mail(returned)
             )[1],
             "%s\n%s" % (self.test_text, self.disclaimer.text),
-            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+            "Body was unexpectedly modified to %s" % (
+                milter_helper.MilterHelper.decode_mail(
+                    self.tool_make_returned_mail(returned)
+                )[1],
+            )
         )
 
     def test_html_disclaimer(self):
@@ -493,5 +532,140 @@ class DisclaimerTestCase(TestCase):
                 self.test_text,
                 self.disclaimer.html
             ),
-            "Body was unexpectedly modified to %s" % returned[0]["repl_body"]
+            "Body was unexpectedly modified to %s" % (
+                milter_helper.MilterHelper.decode_mail(
+                    self.tool_make_returned_mail(returned)
+                )[1],
+            )
+        )
+
+    def test_multiple_rules(self):
+
+        """ Add multiple rules assuming that only the first rule will be
+        carried out.
+        """
+
+        rule2 = models.Rule()
+        rule2.position = 1
+        rule2.save()
+
+        action2 = models.Action()
+
+        action2.action = constants.ACTION_ACTION_ADD
+        action2.disclaimer = self.disclaimer
+        action2.rule = rule2
+        action2.position = 0
+
+        action2.save()
+
+        requirement2 = models.Requirement()
+
+        requirement2.rule = rule2
+        requirement2.action = constants.REQ_ACTION_ACCEPT
+
+        requirement2.save()
+
+        returned = self.tool_run_real_test()
+
+        self.assertEqual(
+            milter_helper.MilterHelper.decode_mail(
+                self.tool_make_returned_mail(returned)
+            )[1],
+            "%s\n%s" % (self.test_text, self.disclaimer.text),
+            "Body was unexpectedly modified to %s" % (
+                milter_helper.MilterHelper.decode_mail(
+                    self.tool_make_returned_mail(returned)
+                )[1],
+            )
+        )
+
+    def test_multiple_rules_continue(self):
+
+        """ Use the continue flag for multiple rules assuming that all rules
+        will be carried out.
+        """
+
+        rule2 = models.Rule()
+        rule2.position = 1
+        rule2.save()
+
+        self.rule.continue_rules = True
+        self.rule.save()
+
+        disclaimer2 = models.Disclaimer()
+
+        disclaimer2.name = "Test2"
+        disclaimer2.text = "Test-Disclaimer2"
+
+        disclaimer2.save()
+
+        action2 = models.Action()
+
+        action2.action = constants.ACTION_ACTION_ADD
+        action2.disclaimer = disclaimer2
+        action2.rule = rule2
+        action2.position = 0
+
+        action2.save()
+
+        requirement2 = models.Requirement()
+
+        requirement2.rule = rule2
+        requirement2.action = constants.REQ_ACTION_ACCEPT
+
+        requirement2.save()
+
+        returned = self.tool_run_real_test()
+
+        self.assertEqual(
+            milter_helper.MilterHelper.decode_mail(
+                self.tool_make_returned_mail(returned)
+            )[1],
+            "%s\n%s\nTest-Disclaimer2" % (self.test_text, self.disclaimer.text),
+            "Body was unexpectedly modified to %s" % (
+                milter_helper.MilterHelper.decode_mail(
+                    self.tool_make_returned_mail(returned)
+                )[1],
+            )
+        )
+
+    def test_disclaimer_add_part(self):
+
+        """ Test an action, that adds a mime part with the disclaimer
+        """
+
+        self.action.action = constants.ACTION_ACTION_ADDPART
+
+        self.action.save()
+
+        returned = self.tool_run_real_test()
+
+        returned_mail = self.tool_make_returned_mail(returned)
+
+        # The first part shouldn't have been modified
+
+        self.assertEqual(
+            milter_helper.MilterHelper.decode_mail(
+                returned_mail.get_payload()[0]
+            )[1],
+            self.test_text,
+            "Body was unexpectedly modified to %s" % (
+                milter_helper.MilterHelper.decode_mail(
+                    self.tool_make_returned_mail(returned)
+                )[1],
+            )
+        )
+
+        # The second part should be our disclaimer
+
+        self.assertEqual(
+            milter_helper.MilterHelper.decode_mail(
+                returned_mail.get_payload()[1]
+            )[1],
+            self.disclaimer.text,
+            "Body was unexpectedly modified to %s" % (
+                milter_helper.MilterHelper.decode_mail(
+                    self.tool_make_returned_mail(returned)
+                )[1],
+            )
         )

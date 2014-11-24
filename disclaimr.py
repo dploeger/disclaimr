@@ -191,7 +191,33 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
 
                 if task_item == "repl_body":
 
+                    # Change body
+
                     self.replBody(task[task_item])
+
+                elif task_item == "add_header":
+
+                    # Add header
+
+                    for header in task["add_header"].keys():
+
+                        self.addHeader(header, task["add_header"][header])
+
+                elif task_item == "change_header":
+
+                    # Change header
+
+                    for header in task["change_header"].keys():
+
+                        self.chgHeader(header, task["change_header"][header])
+
+                elif task_item == "delete_header":
+
+                    # Remove header
+
+                    for header in task["delete_header"].keys():
+
+                        self.chgHeader(header, "")
 
         return lm.CONTINUE
 
@@ -269,9 +295,8 @@ def run_disclaimr_milter():
     # Set milter options
     opts = \
         lm.SMFIF_CHGBODY | \
-        lm.SMFIF_CHGFROM | \
-        lm.SMFIF_ADDRCPT | \
-        lm.SMFIF_QUARANTINE
+        lm.SMFIF_ADDHDRS | \
+        lm.SMFIF_CHGHDRS
 
     # Initialize Fork Factory
     f = lm.ForkFactory(options.socket, DisclaimrMilter, opts)

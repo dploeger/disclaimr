@@ -253,6 +253,8 @@ class MilterHelper(object):
             )
         )
 
+        orig_mail = mail
+
         # Carry out the actions
 
         for rule in models.Rule.objects.filter(id__in=rules):
@@ -268,7 +270,55 @@ class MilterHelper(object):
                     rule.name
                 ))
 
-                self.do_action(mail, action)
+                returned_mail = self.do_action(mail, action)
+
+                if returned_mail is not None:
+
+                    mail = returned_mail
+
+            if not rule.continue_rules:
+
+                break
+
+        # Build workflow
+
+        workflow = {}
+
+        # Change headers?
+
+        for header in mail.keys():
+
+            if header not in orig_mail.keys():
+
+                # Add header
+
+                if "add_header" not in workflow:
+
+                    workflow["add_header"] = {}
+
+                workflow["add_header"][header] = orig_mail[header]
+
+            elif mail[header] != orig_mail[header]:
+
+                # Change header
+
+                if "change_header" not in workflow:
+
+                    workflow["change_header"] = {}
+
+                workflow["change_header"][header] = mail[header]
+
+        # Remove headers?
+
+        for header in orig_mail.keys():
+
+            if header not in mail.keys():
+
+                if "delete_header" not in workflow:
+
+                    workflow["delete_header"] = []
+
+                workflow["delete_header"].append(header)
 
         # Remove all headers from mail, so we can safely replace the body. Do
         #  this by removing everything before the first empty line (as per RFC)
@@ -305,9 +355,9 @@ class MilterHelper(object):
 
         # Replace the body with the modified one
 
-        return [{
-            "repl_body": new_body
-        }]
+        workflow["repl_body"] = new_body
+
+        return workflow
 
     @staticmethod
     def make_html(text):
@@ -377,23 +427,37 @@ class MilterHelper(object):
 
         return encoding, mail_text
 
-    def do_action(self, mail, action):
+    def do_action(self, mail_parameter, action):
 
         """ Apply an action on a mail (optionally recursing through the
             different mail payloads)
 
-        :param mail: A mail object
+        :param mail_parameter: A mail object
         :param action: The action to carry out
         :return: The modified mail
         """
+
+        # We work on a copy here. Remove the reference
+
+        mail = mail_parameter
 
         if mail.is_multipart():
 
             # This is a multipart, recurse through the subparts
 
+            new_payloads = []
+
             for payload in mail.get_payload():
 
-                self.do_action(payload, action)
+                returned_mail = self.do_action(payload, action)
+
+                if returned_mail is not None:
+
+                    new_payloads.append(returned_mail)
+
+            mail.set_payload(new_payloads)
+
+            return mail
 
         else:
 
@@ -407,7 +471,7 @@ class MilterHelper(object):
 
             if mail.get_content_type().lower() == "text/plain":
 
-                text = action.disclaimer.text
+                disclaimer_text = action.disclaimer.text
 
                 disclaimer_charset = action.disclaimer.text_charset
 
@@ -417,7 +481,7 @@ class MilterHelper(object):
 
                 # Rework text disclaimer to valid html
 
-                text = action.disclaimer.text
+                disclaimer_text = action.disclaimer.text
 
                 disclaimer_charset = action.disclaimer.text_charset
 
@@ -425,7 +489,7 @@ class MilterHelper(object):
 
             else:
 
-                text = action.disclaimer.html
+                disclaimer_text = action.disclaimer.html
 
                 disclaimer_charset = action.disclaimer.html_charset
 
@@ -441,17 +505,17 @@ class MilterHelper(object):
 
             if not charset.lower() == disclaimer_charset.lower():
 
-                if isinstance(text, unicode):
+                if isinstance(disclaimer_text, unicode):
 
                     # unicode strings can directly be encoded
 
-                    text = text.encode(charset.lower(), "replace")
+                    disclaimer_text = disclaimer_text.encode(charset.lower(), "replace")
 
                 else:
 
                     # Convert string to unicode string and encode it afterwards
 
-                    text = text.decode("utf-8").encode(charset.lower())
+                    disclaimer_text = disclaimer_text.decode("utf-8").encode(charset.lower())
 
             if do_replace:
 
@@ -722,7 +786,7 @@ class MilterHelper(object):
 
                     # Search for template strings
 
-                    match = template.search(text)
+                    match = template.search(disclaimer_text)
 
                     if not match:
 
@@ -787,7 +851,7 @@ class MilterHelper(object):
 
                             value = ""
 
-                    text = text.replace(
+                    disclaimer_text = disclaimer_text.replace(
                         "{%s}" % replace_key,
                         value
                     )
@@ -798,7 +862,7 @@ class MilterHelper(object):
             if mail.get_content_type().lower() == "text/html" \
                     and action.disclaimer.html_use_text:
 
-                text = self.make_html(text)
+                disclaimer_text = self.make_html(disclaimer_text)
 
             # Carry out the action
 
@@ -818,7 +882,7 @@ class MilterHelper(object):
 
                 new_text = re.sub(
                     action.action_parameters,
-                    text,
+                    disclaimer_text,
                     new_text
                 )
 
@@ -828,7 +892,7 @@ class MilterHelper(object):
 
                     # text/plain can simply be concatenated
 
-                    new_text = "%s\n%s" % (new_text, text)
+                    new_text = "%s\n%s" % (new_text, disclaimer_text)
 
                 elif mail.get_content_type().lower() == "text/html":
 
@@ -837,7 +901,7 @@ class MilterHelper(object):
 
                     html_part = etree.HTML(new_text)
 
-                    disclaimer_part = etree.HTML(text)
+                    disclaimer_part = etree.HTML(disclaimer_text)
 
                     if len(html_part.xpath("body")) > 0:
 
@@ -869,6 +933,44 @@ class MilterHelper(object):
                     )
 
                     return
+
+            elif action.action == constants.ACTION_ACTION_ADDPART:
+
+                # Add another mailpart by converting the current part to a
+                # multipart, adding itself and the disclaimer part to it
+
+                if mail.get_content_type().lower() == "text/plain":
+
+                    mail_disclaimer = email.mime.text.MIMEText(
+                        disclaimer_text
+                    )
+
+                elif mail.get_content_type().lower() == "text/html":
+
+                    mail_disclaimer = email.mime.text.MIMEText(
+                        disclaimer_text,
+                        "html"
+                    )
+
+                else:
+
+                    logging.info(
+                        "Unsupported content type %s found. Skipping "
+                        "disclaimer." % mail.get_content_type()
+                    )
+
+                    return
+
+                new_mail = email.mime.multipart.MIMEMultipart("mixed")
+
+                new_mail.attach(mail)
+                new_mail.attach(mail_disclaimer)
+
+                # Use as_string once to let the boundary be generated
+
+                new_mail.as_string()
+
+                return new_mail
 
             else:
 
@@ -903,3 +1005,5 @@ class MilterHelper(object):
             else:
 
                 email.encoders.encode_7or8bit(mail)
+
+            return mail
