@@ -36,7 +36,7 @@ It has the following features:
 
 Install the requirements of Disclaimr (for example using pip):
 
-    pip install python-libmilter netaddr django django-grappelli python-ldap lxml adminsortable
+    pip install python-libmilter netaddr django django-grappelli python-ldap lxml django-admin-sortable2
 
 You still need to install the python package for the database backend you'd
 like to use. For example, to use MySQL with the mysqlclient API driver, run:

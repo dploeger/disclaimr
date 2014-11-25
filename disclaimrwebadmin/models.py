@@ -1,7 +1,6 @@
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 import netaddr
-from sortable.models import Sortable
 import constants
 
 
