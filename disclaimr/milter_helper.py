@@ -465,6 +465,17 @@ class MilterHelper(object):
                 "Got part of content-type %s" % mail.get_content_type()
             )
 
+            if mail.get_content_type().lower() not in ("text/plain",
+                                                       "text/html"):
+
+                logging.info(
+                    "Content-type %s is currently not supported." % (
+                        mail.get_content_type(),
+                    )
+                )
+
+                return mail
+
             # Set disclaimer text
 
             logging.debug("Setting disclaimer text")
@@ -509,13 +520,18 @@ class MilterHelper(object):
 
                     # unicode strings can directly be encoded
 
-                    disclaimer_text = disclaimer_text.encode(charset.lower(), "replace")
+                    disclaimer_text = disclaimer_text.encode(
+                        charset.lower(),
+                        "replace"
+                    )
 
                 else:
 
                     # Convert string to unicode string and encode it afterwards
 
-                    disclaimer_text = disclaimer_text.decode("utf-8").encode(charset.lower())
+                    disclaimer_text = disclaimer_text.decode("utf-8").encode(
+                        charset.lower()
+                    )
 
             if do_replace:
 
@@ -925,19 +941,12 @@ class MilterHelper(object):
                         method="html"
                     )
 
-                else:
-
-                    logging.info(
-                        "Unsupported content type %s found. Skipping "
-                        "disclaimer." % mail.get_content_type()
-                    )
-
-                    return
-
             elif action.action == constants.ACTION_ACTION_ADDPART:
 
                 # Add another mailpart by converting the current part to a
                 # multipart, adding itself and the disclaimer part to it
+
+                mail_disclaimer = None
 
                 if mail.get_content_type().lower() == "text/plain":
 
@@ -951,15 +960,6 @@ class MilterHelper(object):
                         disclaimer_text,
                         "html"
                     )
-
-                else:
-
-                    logging.info(
-                        "Unsupported content type %s found. Skipping "
-                        "disclaimer." % mail.get_content_type()
-                    )
-
-                    return
 
                 new_mail = email.mime.multipart.MIMEMultipart("mixed")
 

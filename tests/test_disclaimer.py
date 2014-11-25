@@ -651,7 +651,7 @@ class DisclaimerTestCase(TestCase):
             self.test_text,
             "Body was unexpectedly modified to %s" % (
                 milter_helper.MilterHelper.decode_mail(
-                    self.tool_make_returned_mail(returned)
+                    returned_mail.get_payload()[0]
                 )[1],
             )
         )
@@ -665,7 +665,103 @@ class DisclaimerTestCase(TestCase):
             self.disclaimer.text,
             "Body was unexpectedly modified to %s" % (
                 milter_helper.MilterHelper.decode_mail(
-                    self.tool_make_returned_mail(returned)
+                    returned_mail.get_payload()[1]
+                )[1],
+            )
+        )
+
+    def test_disclaimer_add_part_html(self):
+
+        """ Test an action, that adds a mime part with a HTML disclaimer
+        based on the text disclaimer
+        """
+
+        self.action.action = constants.ACTION_ACTION_ADDPART
+
+        self.action.save()
+
+        test_html = "<p>TestHTML</p>"
+
+        self.test_mail = MIMEText(test_html, "html", "UTF-8")
+
+        returned = self.tool_run_real_test(make_mail=False)
+
+        returned_mail = self.tool_make_returned_mail(returned)
+
+        # The first part shouldn't have been modified
+
+        self.assertEqual(
+            milter_helper.MilterHelper.decode_mail(
+                returned_mail.get_payload()[0]
+            )[1],
+            test_html,
+            "Body was unexpectedly modified to %s" % (
+                milter_helper.MilterHelper.decode_mail(
+                    returned_mail.get_payload()[0]
+                )[1],
+            )
+        )
+
+        # The second part should be our disclaimer
+
+        self.assertEqual(
+            milter_helper.MilterHelper.decode_mail(
+                returned_mail.get_payload()[1]
+            )[1],
+            self.disclaimer.text,
+            "Body was unexpectedly modified to %s" % (
+                milter_helper.MilterHelper.decode_mail(
+                    returned_mail.get_payload()[1]
+                )[1],
+            )
+        )
+
+    def test_disclaimer_add_part_html_disclaimer(self):
+
+        """ Test an action, that adds a mime part with a pure HTML disclaimer
+        """
+
+        self.action.action = constants.ACTION_ACTION_ADDPART
+
+        self.action.save()
+
+        test_html = "<p>TestHTML</p>"
+
+        self.test_mail = MIMEText(test_html, "html", "UTF-8")
+
+        self.disclaimer.html_use_text = False
+        self.disclaimer.html = "<b>TEST-DISCLAIMER</b>"
+
+        self.disclaimer.save()
+
+        returned = self.tool_run_real_test(make_mail=False)
+
+        returned_mail = self.tool_make_returned_mail(returned)
+
+        # The first part shouldn't have been modified
+
+        self.assertEqual(
+            milter_helper.MilterHelper.decode_mail(
+                returned_mail.get_payload()[0]
+            )[1],
+            test_html,
+            "Body was unexpectedly modified to %s" % (
+                milter_helper.MilterHelper.decode_mail(
+                    returned_mail.get_payload()[0]
+                )[1],
+            )
+        )
+
+        # The second part should be our disclaimer
+
+        self.assertEqual(
+            milter_helper.MilterHelper.decode_mail(
+                returned_mail.get_payload()[1]
+            )[1],
+            self.disclaimer.html,
+            "Body was unexpectedly modified to %s" % (
+                milter_helper.MilterHelper.decode_mail(
+                    returned_mail.get_payload()[1]
                 )[1],
             )
         )
