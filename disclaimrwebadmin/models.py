@@ -222,6 +222,14 @@ class Disclaimer(models.Model):
         default=False
     )
 
+    use_html_fallback = models.BooleanField(
+        _("use HTML as a fallback"),
+        help_text=_("Usually, disclaimr tries to identify the content type "
+                    "of the sent mail and uses the matching disclaimer. If "
+                    "that doesn't work, use HTML instead of text."),
+        default=False
+    )
+
     def __unicode__(self):
 
         return self.name

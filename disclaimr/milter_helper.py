@@ -1,5 +1,6 @@
 """ Python Module for class MilterHelper """
 import base64
+import copy
 import email
 import logging
 import quopri
@@ -85,7 +86,7 @@ class MilterHelper(object):
 
         for req in models.Requirement.objects.filter(id__in=self.requirements):
 
-            if not re.match(req.sender, addr):
+            if not re.search(req.sender, addr):
 
                 self.requirements = filter(
                     lambda x: x != req.id, self.requirements
@@ -112,7 +113,7 @@ class MilterHelper(object):
 
         for req in models.Requirement.objects.filter(id__in=self.requirements):
 
-            if not re.match(req.recipient, recip):
+            if not re.search(req.recipient, recip):
 
                 self.requirements = filter(
                     lambda x: x != req.id, self.requirements
@@ -150,7 +151,7 @@ class MilterHelper(object):
 
         for req in models.Requirement.objects.filter(id__in=self.requirements):
 
-            if not re.match(req.header, "\n".join(self.mail_data["headers"])):
+            if not re.search(req.header, "\n".join(self.mail_data["headers"])):
 
                 self.requirements = filter(
                     lambda x: x != req.id, self.requirements
@@ -192,7 +193,7 @@ class MilterHelper(object):
 
         for req in models.Requirement.objects.filter(id__in=self.requirements):
 
-            if not re.match(req.body, self.mail_data["body"]):
+            if not re.search(req.body, self.mail_data["body"]):
 
                 self.requirements = filter(
                     lambda x: x != req.id, self.requirements
@@ -253,7 +254,7 @@ class MilterHelper(object):
             )
         )
 
-        orig_mail = mail
+        orig_mail = copy.deepcopy(mail)
 
         # Carry out the actions
 
@@ -439,7 +440,7 @@ class MilterHelper(object):
 
         # We work on a copy here. Remove the reference
 
-        mail = mail_parameter
+        mail = copy.deepcopy(mail_parameter)
 
         if mail.is_multipart():
 
@@ -466,21 +467,44 @@ class MilterHelper(object):
             )
 
             if mail.get_content_type().lower() not in ("text/plain",
-                                                       "text/html"):
+                                                       "text/html")\
+               and not action.action == constants.ACTION_ACTION_ADDPART:
 
                 logging.info(
-                    "Content-type %s is currently not supported." % (
+                    "Content-type %s is currently not supported for actions "
+                    "other than addpart." % (
                         mail.get_content_type(),
                     )
                 )
 
                 return mail
 
+            # Fetch the content type of the mail
+
+            if mail.get_content_type().lower() not in ("text/plain",
+                                                       "text/html") \
+               and action.action == constants.ACTION_ACTION_ADDPART:
+
+                # Cannot detect the right content type. Set the disclaimer
+                # content type to the fallback type
+
+                if action.disclaimer.use_html_fallback:
+
+                    content_type = "text/html"
+
+                else:
+
+                    content_type = "text/plain"
+
+            else:
+
+                content_type = mail.get_content_type().lower()
+
             # Set disclaimer text
 
             logging.debug("Setting disclaimer text")
 
-            if mail.get_content_type().lower() == "text/plain":
+            if content_type == "text/plain":
 
                 disclaimer_text = action.disclaimer.text
 
@@ -875,7 +899,7 @@ class MilterHelper(object):
             # If the HTML disclaimer should be the same as the text
             # disclaimer, reformat it to make it HTML-usable
 
-            if mail.get_content_type().lower() == "text/html" \
+            if content_type == "text/html" \
                     and action.disclaimer.html_use_text:
 
                 disclaimer_text = self.make_html(disclaimer_text)
@@ -904,13 +928,13 @@ class MilterHelper(object):
 
             elif action.action == constants.ACTION_ACTION_ADD:
 
-                if mail.get_content_type().lower() == "text/plain":
+                if content_type == "text/plain":
 
                     # text/plain can simply be concatenated
 
                     new_text = "%s\n%s" % (new_text, disclaimer_text)
 
-                elif mail.get_content_type().lower() == "text/html":
+                elif content_type == "text/html":
 
                     # text/html has to been put before the closing body-tag,
                     # so parse the text
@@ -948,22 +972,45 @@ class MilterHelper(object):
 
                 mail_disclaimer = None
 
-                if mail.get_content_type().lower() == "text/plain":
-
-                    mail_disclaimer = email.mime.text.MIMEText(
-                        disclaimer_text
-                    )
-
-                elif mail.get_content_type().lower() == "text/html":
+                if content_type == "text/plain":
 
                     mail_disclaimer = email.mime.text.MIMEText(
                         disclaimer_text,
-                        "html"
+                        "plain",
+                        disclaimer_charset
+                    )
+
+                elif content_type == "text/html":
+
+                    mail_disclaimer = email.mime.text.MIMEText(
+                        disclaimer_text,
+                        "html",
+                        disclaimer_charset
                     )
 
                 new_mail = email.mime.multipart.MIMEMultipart("mixed")
 
-                new_mail.attach(mail)
+                # Transfer the old headers to the new multipart mail
+
+                bad_headers = (
+                    "content-type",
+                    "content-transfer-encoding",
+                    "mime-version",
+                    "content-disposition",
+                    "content-description"
+                )
+
+                for header in mail.keys():
+
+                    value = mail[header]
+
+                    if header.lower() not in bad_headers:
+
+                        new_mail.add_header(header, value)
+
+                rfc822_part = email.mime.message.MIMEMessage(mail)
+
+                new_mail.attach(rfc822_part)
                 new_mail.attach(mail_disclaimer)
 
                 # Use as_string once to let the boundary be generated

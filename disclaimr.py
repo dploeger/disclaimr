@@ -185,39 +185,37 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
 
         tasks = self.helper.eob(cmd_dict)
 
-        for task in tasks:
+        for task_item in tasks.keys():
 
-            for task_item in task.iterkeys():
+            if task_item == "repl_body":
 
-                if task_item == "repl_body":
+                # Change body
 
-                    # Change body
+                self.replBody(tasks[task_item])
 
-                    self.replBody(task[task_item])
+            elif task_item == "add_header":
 
-                elif task_item == "add_header":
+                # Add header
 
-                    # Add header
+                for header in tasks["add_header"].keys():
 
-                    for header in task["add_header"].keys():
+                    self.addHeader(header, tasks["add_header"][header])
 
-                        self.addHeader(header, task["add_header"][header])
+            elif task_item == "change_header":
 
-                elif task_item == "change_header":
+                # Change header
 
-                    # Change header
+                for header in tasks["change_header"].keys():
 
-                    for header in task["change_header"].keys():
+                    self.chgHeader(header, tasks["change_header"][header])
 
-                        self.chgHeader(header, task["change_header"][header])
+            elif task_item == "delete_header":
 
-                elif task_item == "delete_header":
+                # Remove header
 
-                    # Remove header
+                for header in tasks["delete_header"]:
 
-                    for header in task["delete_header"].keys():
-
-                        self.chgHeader(header, "")
+                    self.chgHeader(header, "")
 
         return lm.CONTINUE
 
