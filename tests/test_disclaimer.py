@@ -1,5 +1,6 @@
 """ Disclaimer testing """
 import email
+from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -642,11 +643,12 @@ class DisclaimerTestCase(TestCase):
 
         returned_mail = self.tool_make_returned_mail(returned)
 
-        # The first part shouldn't have been modified
+        # The first part shouldn't have been modified, but added as an
+        # rfc-822 attachment
 
         self.assertEqual(
             milter_helper.MilterHelper.decode_mail(
-                returned_mail.get_payload()[0]
+                returned_mail.get_payload()[0].get_payload()[0]
             )[1],
             self.test_text,
             "Body was unexpectedly modified to %s" % (
@@ -688,11 +690,12 @@ class DisclaimerTestCase(TestCase):
 
         returned_mail = self.tool_make_returned_mail(returned)
 
-        # The first part shouldn't have been modified
+        # The first part shouldn't have been modified, but added as an
+        # rfc-822 attachment
 
         self.assertEqual(
             milter_helper.MilterHelper.decode_mail(
-                returned_mail.get_payload()[0]
+                returned_mail.get_payload()[0].get_payload()[0]
             )[1],
             test_html,
             "Body was unexpectedly modified to %s" % (
@@ -738,11 +741,12 @@ class DisclaimerTestCase(TestCase):
 
         returned_mail = self.tool_make_returned_mail(returned)
 
-        # The first part shouldn't have been modified
+        # The first part shouldn't have been modified, but added as an
+        # rfc-822 attachment
 
         self.assertEqual(
             milter_helper.MilterHelper.decode_mail(
-                returned_mail.get_payload()[0]
+                returned_mail.get_payload()[0].get_payload()[0]
             )[1],
             test_html,
             "Body was unexpectedly modified to %s" % (
@@ -753,6 +757,110 @@ class DisclaimerTestCase(TestCase):
         )
 
         # The second part should be our disclaimer
+
+        self.assertEqual(
+            milter_helper.MilterHelper.decode_mail(
+                returned_mail.get_payload()[1]
+            )[1],
+            self.disclaimer.html,
+            "Body was unexpectedly modified to %s" % (
+                milter_helper.MilterHelper.decode_mail(
+                    returned_mail.get_payload()[1]
+                )[1],
+            )
+        )
+
+    def test_disclaimer_add_part_fallback(self):
+
+        """ Test an action, that adds a mime part with the disclaimer,
+        but uses a not-supported original mime-part (not text/plain or
+        /html). This should give a text-disclaimer back.
+        """
+
+        self.action.action = constants.ACTION_ACTION_ADDPART
+
+        self.action.save()
+
+        self.disclaimer.html_use_text = False
+        self.disclaimer.html = "<b>TEST-DISCLAIMER</b>"
+
+        self.disclaimer.save()
+
+        self.test_mail = MIMEApplication("TEST")
+
+        returned = self.tool_run_real_test(make_mail=False)
+
+        returned_mail = self.tool_make_returned_mail(returned)
+
+        # The first part shouldn't have been modified, but added as an
+        # rfc-822 attachment
+
+        self.assertEqual(
+            milter_helper.MilterHelper.decode_mail(
+                returned_mail.get_payload()[0].get_payload()[0]
+            )[1],
+            "TEST",
+            "Body was unexpectedly modified to %s" % (
+                milter_helper.MilterHelper.decode_mail(
+                    returned_mail.get_payload()[0]
+                )[1],
+            )
+        )
+
+        # The second part should be the text-part of the disclaimer
+
+        self.assertEqual(
+            milter_helper.MilterHelper.decode_mail(
+                returned_mail.get_payload()[1]
+            )[1],
+            self.disclaimer.text,
+            "Body was unexpectedly modified to %s" % (
+                milter_helper.MilterHelper.decode_mail(
+                    returned_mail.get_payload()[1]
+                )[1],
+            )
+        )
+
+    def test_disclaimer_add_part_fallback_html(self):
+
+        """ Test an action, that adds a mime part with the disclaimer,
+        but uses a not-supported original mime-part (not text/plain or
+        /html). Use the html fallback to generate a html-disclaimer.
+        """
+
+        self.action.action = constants.ACTION_ACTION_ADDPART
+
+        self.action.save()
+
+        self.disclaimer.html_use_text = False
+        self.disclaimer.html = "<b>TEST-DISCLAIMER</b>"
+
+        self.disclaimer.use_html_fallback = True
+
+        self.disclaimer.save()
+
+        self.test_mail = MIMEApplication("TEST")
+
+        returned = self.tool_run_real_test(make_mail=False)
+
+        returned_mail = self.tool_make_returned_mail(returned)
+
+        # The first part shouldn't have been modified, but added as an
+        # rfc-822 attachment
+
+        self.assertEqual(
+            milter_helper.MilterHelper.decode_mail(
+                returned_mail.get_payload()[0].get_payload()[0]
+            )[1],
+            "TEST",
+            "Body was unexpectedly modified to %s" % (
+                milter_helper.MilterHelper.decode_mail(
+                    returned_mail.get_payload()[0]
+                )[1],
+            )
+        )
+
+        # The second part should be the text-part of the disclaimer
 
         self.assertEqual(
             milter_helper.MilterHelper.decode_mail(

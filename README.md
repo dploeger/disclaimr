@@ -3,10 +3,11 @@
 ## Introduction
 
 **Disclaimr** is a [milter daemon](https://www.milter.org/), that dynamically
-adds mail disclaimers or footers to filtered mails. Additionally, it includes
- a Django-based web administration user interface to easily let non-technical
- people manage the disclaimers.
- 
+adds mail disclaimers (also called footers) to filtered mails.
+
+It uses [Django](https://www.djangoproject.com/) for database abstraction and
+ to present an easy-to-use web UI for non-technical staff.
+
 It has the following features:
 
 * Easy to use (and role-based) web user interface to allow non-technical staff
@@ -16,6 +17,7 @@ It has the following features:
 * Support for differentiating between plaintext and HTML-mails
 * Support for resolving the sender of the incoming mails and use their data
   from an LDAP-server dynamically inside a disclaimer
+* Support for encrypted mails (S/MIME, PGP)
 
 ## Requirements
 
@@ -102,12 +104,14 @@ Disclaimr's configuration database is based on the following objects:
 
 * Disclaimer: A disclaimer is a text, which can be used in an action. A
   plaintext- and an HTML-part can be configured.
-* Rules: Rules are a combined set of requirements and actions.
-  * Requirments: Requirements decide, wether a connection to the milter
+* Rules: Rules are a combined set of requirements and actions. Each rule will
+ be checked in the order they are sorted in. The action of the first rule
+ matching will be carried out (as long as the "continue" flag of the rule
+ isn't checked)
+  * Requirements: Requirements decide, wether a connection to the milter
     daemon will enable the actions of the rule. If one of
     the requirements fail, the rule will be disabled. Also, there has to be at
-    least one requirement set to "Allow" for the rule to
-    be taken into account.
+    least one requirement set to "Allow" for the rule to be taken into account.
   * Actions: Actions do something with the body of the incoming mail.
     They can for example add a disclaimer to the body or replace a tag inside
      the body with the disclaimer text.
@@ -115,7 +119,7 @@ Disclaimr's configuration database is based on the following objects:
   directory server-objects to connect to an LDAP server
 
 Every object contains a "name" and an optional "description" field to
-identify it.
+identify it. There are additional fields to configure as follows:
 
 ## Disclaimers
 
@@ -123,7 +127,7 @@ Disclaimers are the configuration objects, which will be merged with the
 body of an incoming mail. You can configure texts for plaintext- and
 HTML-mails (or use the plaintext-value also for HTML-mails). Additionally,
 you can use tags inside the text, which will be replaced by dynamic data
-based on the incoming mail.
+based upon the incoming mail.
 
 * Text-part: The disclaimer text for plaintext-mails
   * Use template tags: Parse the plaintext-disclaimer for resolver-tags
@@ -135,19 +139,25 @@ based on the incoming mail.
 * Fail if template doesn't exist: If a tag from the resolver feature cannot be
   replaced, this disclaimer will not be used. If this is not enabled, the tag
    will be removed with an empty string
+* Use HTML as a fallback: If the incoming mail only contains mime-parts that
+  aren't either text or HTML, Disclaimr will use the text disclaimer per
+  default. If you check this option, Disclaimr will instead use the HTML
+  disclaimer.
 
 ## Rules
 
 Rules are the basic building blocks of the milter workflow. The requirements
 will be checked and, if no requirement fails, the actions will be carried out
- in the order it is sorted in the web ui.
+ in the order they are sorted in the web ui.
+
+The order the rules will be carried out can also be changed using the web ui.
 
 If the additional parameter "Continue after this rule" is checked, additional
- rules, that matched, will be carried out after this rule.
+ matching rules, will be carried out after this rule.
 
 ### Requirements
 
-* Enabled: Is this requirment enabled (if disabled, the requirement will be
+* Enabled: Is this requirment enabled? (if disabled, the requirement will be
   skipped)
 * Sender-IP address/Netmask: An IP-Address and CIDR-Netmask, which have to
   match the host connecting to the milter
@@ -166,8 +176,9 @@ If the additional parameter "Continue after this rule" is checked, additional
   supported:
   * Add the disclaimer to the body
   * Replace the regexp in the field "Action parameters" with the disclaimer
-  * Add the disclaimer to the body by adding another MIME-type to it (useful
-    for encrypted/signed E-Mails)
+  * Add the disclaimer to the body by adding another MIME-part to it and
+    adding the orignal mail as a mime/rfc-822-part (useful for
+    encrypted/signed E-Mails)
 * Mime type: Use this action only for bodies of this mime type
 * Action parameters: Additional parameters for the selected action
 * Resolve the sender: Use the resolver feature and try to resolve the
@@ -192,7 +203,7 @@ If the additional parameter "Continue after this rule" is checked, additional
 
 ## Resolver feature
 
-Disclaimr can also be used to generate dynamic signatures. For this to work,
+Disclaimr can also be used to generate dynamic footers. For this to work,
 in most cases it has to have access to the contact data of the sender of the
 email. For this purpose, Disclaimr can connect to an LDAP-server and retrieve
 the data based on the sender-emailaddress.
@@ -204,8 +215,38 @@ These tags can be used in a disclaimer in any case:
 
 * {sender}: the "MAIL FROM"-envelope value
 * {recipient}: the "RCPT TO"-envelope value
-* {header["key"]}: A Header with the key "key"
+* {header["key"]}: A mail header with the key "key"
 
 The following tag will be accesible when the resolver succeeds:
 
 * {resolver["key"]}: The value of the LDAP-property "key" from the resolver
+
+## Supporting Encryption
+
+Encrypted mails (either using PGP or S/MIME) are a problem when you like to
+centrally manage disclaimers or footers. As the text of the mails are
+encrypted, you cannot look into it to replace tags with dynamic footers. When
+ the mails are signed, you also cannot just add text, because that would
+ break the signature.
+
+What you *can* do, is add another mime part to it. The basic workflow of
+supporting encryption while maintaining a dynamic footer is:
+
+* Generate the disclaimer as a separate mime-part
+* Convert the original mime-part to a rfc822-part ("an attached message")
+* Build a multipart-mail with both parts attached
+
+To identify pgp or mime parts, you can use the following methods:
+
+### Detecting PGP
+
+To detect pgp, add a requirement, that matches the body for the following
+regexp:
+
+    BEGIN PGP SIGNED MESSAGE|BEGIN PGP MESSAGE
+
+### Detecting S/MIME
+
+To detect an S/MIME-mail use a requirement with a header filter and this regexp:
+
+    application/pkcs7-signature|application/pkcs7-mime
