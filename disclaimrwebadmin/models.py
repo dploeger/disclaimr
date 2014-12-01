@@ -38,6 +38,8 @@ class Rule(models.Model):
     class Meta():
 
         ordering = ["position"]
+        verbose_name = _("Rule")
+        verbose_name_plural = _("Rules")
 
     def __unicode__(self):
 
@@ -56,7 +58,10 @@ class Requirement(models.Model):
         during work.
     """
 
-    rule = models.ForeignKey(Rule)
+    rule = models.ForeignKey(
+        Rule,
+        verbose_name=_("Rule")
+    )
 
     name = models.CharField(
         _("name"),
@@ -123,6 +128,7 @@ class Requirement(models.Model):
 
     class Meta:
         verbose_name = _("Requirement")
+        verbose_name_plural = _("Requirements")
 
     def get_sender_ip_network(self):
 
@@ -230,6 +236,11 @@ class Disclaimer(models.Model):
         default=False
     )
 
+    class Meta():
+
+        verbose_name = _("Disclaimer")
+        verbose_name_plural = _("Disclaimers")
+
     def __unicode__(self):
 
         return self.name
@@ -311,6 +322,11 @@ class DirectoryServer(models.Model):
         default=3600
     )
 
+    class Meta:
+
+        verbose_name = _("Directory server")
+        verbose_name_plural = _("Directory servers")
+
     def __unicode__(self):
 
         if not self.enabled:
@@ -327,7 +343,10 @@ class DirectoryServerURL(models.Model):
         responding
     """
 
-    directory_server = models.ForeignKey(DirectoryServer)
+    directory_server = models.ForeignKey(
+        DirectoryServer,
+        verbose_name=_("Directory server")
+    )
 
     url = models.CharField(
         _("URL"),
@@ -341,6 +360,7 @@ class DirectoryServerURL(models.Model):
     class Meta:
         ordering = ['position']
         verbose_name = _("URL")
+        verbose_name_plural = _("URLs")
 
     def __unicode__(self):
 
@@ -355,7 +375,10 @@ class Action(models.Model):
         requirements in a rule
     """
 
-    rule = models.ForeignKey(Rule)
+    rule = models.ForeignKey(
+        Rule,
+        verbose_name=_("Rule")
+    )
     position = models.PositiveSmallIntegerField(_("Position"))
 
     name = models.CharField(
@@ -427,17 +450,20 @@ class Action(models.Model):
 
     disclaimer = models.ForeignKey(
         Disclaimer,
+        verbose_name=_("Disclaimer"),
         help_text=_("Which disclaimer to use")
     )
 
     directory_servers = models.ManyToManyField(
         DirectoryServer,
+        verbose_name=_("Directory servers"),
         help_text=_("Which directory server(s) to use.")
     )
 
     class Meta:
         ordering = ['position']
         verbose_name = _("Action")
+        verbose_name_plural = _("Actions")
 
     def __unicode__(self):
 
