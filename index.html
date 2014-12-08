@@ -1,0 +1,359 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Disclaimr by dploeger</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="javascripts/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>Disclaimr</h1>
+        <p>Disclaimr - Mail Disclaimer Server</p>
+        <p class="view"><a href="https://github.com/dploeger/disclaimr">View the Project on GitHub <small>dploeger/disclaimr</small></a></p>
+        <ul>
+          <li><a href="https://github.com/dploeger/disclaimr/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/dploeger/disclaimr/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/dploeger/disclaimr">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <h1>
+<a id="disclaimr---mail-disclaimer-server" class="anchor" href="#disclaimr---mail-disclaimer-server" aria-hidden="true"><span class="octicon octicon-link"></span></a>Disclaimr - Mail disclaimer server</h1>
+
+<h2>
+<a id="introduction" class="anchor" href="#introduction" aria-hidden="true"><span class="octicon octicon-link"></span></a>Introduction</h2>
+
+<p><strong>Disclaimr</strong> is a <a href="https://www.milter.org/">milter daemon</a>, that dynamically
+adds mail disclaimers (also called footers) to filtered mails.</p>
+
+<p>It uses <a href="https://www.djangoproject.com/">Django</a> for database abstraction and
+ to present an easy-to-use web UI for non-technical staff.</p>
+
+<p>It has the following features:</p>
+
+<ul>
+<li>Easy to use (and role-based) web user interface to allow non-technical staff
+to modify disclaimers</li>
+<li>Add disclaimers to the body of incoming emails or replace tags inside the
+body with disclaimer texts</li>
+<li>Support for differentiating between plaintext and HTML-mails</li>
+<li>Support for resolving the sender of the incoming mails and use their data
+from an LDAP-server dynamically inside a disclaimer</li>
+<li>Support for encrypted mails (S/MIME, PGP)</li>
+</ul>
+
+<h2>
+<a id="requirements" class="anchor" href="#requirements" aria-hidden="true"><span class="octicon octicon-link"></span></a>Requirements</h2>
+
+<ul>
+<li><a href="https://www.python.org">Python 2.7</a></li>
+<li><a href="https://github.com/crustymonkey/python-libmilter">python-libmilter</a></li>
+<li><a href="https://github.com/drkjam/netaddr">python-netaddr</a></li>
+<li><a href="https://www.djangoproject.com/">Django 1.7</a></li>
+<li><a href="http://grappelliproject.com/">Grappelli</a></li>
+<li><a href="http://www.python-ldap.org/">Python-LDAP</a></li>
+<li><a href="http://lxml.de/">lxml</a></li>
+<li><a href="https://github.com/jrief/django-admin-sortable2">Django-admin-sortable2</a></li>
+<li>
+<a href="https://github.com/farcepest/MySQLdb1">mysqldb</a> (or another database
+backend for Python. Disclaimr doesn't support Sqlite)</li>
+</ul>
+
+<h2>
+<a id="installation" class="anchor" href="#installation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Installation</h2>
+
+<h3>
+<a id="python-packages" class="anchor" href="#python-packages" aria-hidden="true"><span class="octicon octicon-link"></span></a>Python packages</h3>
+
+<p>Install the requirements of Disclaimr (for example using pip):</p>
+
+<pre><code>pip install python-libmilter netaddr django django-grappelli python-ldap lxml django-admin-sortable2
+</code></pre>
+
+<p>You still need to install the python package for the database backend you'd
+like to use. For example, to use MySQL with the mysqlclient API driver, run:</p>
+
+<pre><code>pip install mysqlclient
+</code></pre>
+
+<p>Download the latest Disclaimr release and put it in an accessible path.</p>
+
+<h3>
+<a id="database-setup" class="anchor" href="#database-setup" aria-hidden="true"><span class="octicon octicon-link"></span></a>Database setup</h3>
+
+<p>Create a database in your preferred backend and configure it by copying the
+file "db.conf.dist" to "db.conf" inside the settings subdirectory and modify
+it according to your backend.</p>
+
+<p>To initialize the database, run </p>
+
+<pre><code>python manage.py migrate
+</code></pre>
+
+<h3>
+<a id="creating-a-superuser" class="anchor" href="#creating-a-superuser" aria-hidden="true"><span class="octicon octicon-link"></span></a>Creating a superuser</h3>
+
+<p>To create an initial superuser to access the Disclaimr Frontend, use</p>
+
+<pre><code>python manage.py createsuperuser
+</code></pre>
+
+<h2>
+<a id="usage" class="anchor" href="#usage" aria-hidden="true"><span class="octicon octicon-link"></span></a>Usage</h2>
+
+<p>Disclaimr can run from any server meeting the above requirements. Just start
+the disclaimr milter and configure your mail
+server to use it. For optimal performance, though, it's better to run Disclaimr
+directly from your mail server.</p>
+
+<p>To start the milter, run</p>
+
+<pre><code>python disclaimr.py
+</code></pre>
+
+<p>Disclaimr will run on localhost, Port 5000 per default. You can specify
+another socket-option using</p>
+
+<pre><code>python disclaimr.py -s &lt;socket-option&gt;
+</code></pre>
+
+<p>For example "inet:localhost:6000" to use Port 6000 instead of 5000.</p>
+
+<p>If you'd like to use the resolver feature with an SSL-enabled LDAP-server,
+that has no proper certificate, you'll have to add the "--ignore-cert" option
+ to the daemon.</p>
+
+<p>Run disclaimr.py with --help for more information.</p>
+
+<h2>
+<a id="administration" class="anchor" href="#administration" aria-hidden="true"><span class="octicon octicon-link"></span></a>Administration</h2>
+
+<p>Disclaimr comes with its own web frontend based on Django. You can use the
+Django testserver by running</p>
+
+<pre><code>python manage.py runserver
+</code></pre>
+
+<p>It's recommended to use a "real" web server and also use TLS-Encryption
+instead of the testserver. Please see <a href="https://docs.djangoproject.com/en/1.6/howto/deployment/">Django deployment options</a> for more detail.</p>
+
+<h3>
+<a id="introduction-1" class="anchor" href="#introduction-1" aria-hidden="true"><span class="octicon octicon-link"></span></a>Introduction</h3>
+
+<p>Disclaimr's configuration database is based on the following objects:</p>
+
+<ul>
+<li>Disclaimer: A disclaimer is a text, which can be used in an action. A
+plaintext- and an HTML-part can be configured.</li>
+<li>Rules: Rules are a combined set of requirements and actions. Each rule will
+be checked in the order they are sorted in. The action of the first rule
+matching will be carried out (as long as the "continue" flag of the rule
+isn't checked)
+
+<ul>
+<li>Requirements: Requirements decide, wether a connection to the milter
+daemon will enable the actions of the rule. If one of
+the requirements fail, the rule will be disabled. Also, there has to be at
+least one requirement set to "Allow" for the rule to be taken into account.</li>
+<li>Actions: Actions do something with the body of the incoming mail.
+They can for example add a disclaimer to the body or replace a tag inside
+the body with the disclaimer text.</li>
+</ul>
+</li>
+<li>Directory Servers: If you'd like to use the resolver feature, you use
+directory server-objects to connect to an LDAP server</li>
+</ul>
+
+<p>Every object contains a "name" and an optional "description" field to
+identify it. There are additional fields to configure as follows:</p>
+
+<h2>
+<a id="disclaimers" class="anchor" href="#disclaimers" aria-hidden="true"><span class="octicon octicon-link"></span></a>Disclaimers</h2>
+
+<p>Disclaimers are the configuration objects, which will be merged with the
+body of an incoming mail. You can configure texts for plaintext- and
+HTML-mails (or use the plaintext-value also for HTML-mails). Additionally,
+you can use tags inside the text, which will be replaced by dynamic data
+based upon the incoming mail.</p>
+
+<ul>
+<li>Text-part: The disclaimer text for plaintext-mails
+
+<ul>
+<li>Use template tags: Parse the plaintext-disclaimer for resolver-tags
+(see below)</li>
+</ul>
+</li>
+<li>Use text part: Instead of using the text inside the "Html-part"-field,
+use the text of the plaintext-field also for HTML-mails</li>
+<li>Html-part: The disclaimer text for HTML-mails
+
+<ul>
+<li>Use template tags: Parse the HTML-disclaimer for resolver-tags (see below)</li>
+</ul>
+</li>
+<li>Fail if template doesn't exist: If a tag from the resolver feature cannot be
+replaced, this disclaimer will not be used. If this is not enabled, the tag
+will be removed with an empty string</li>
+<li>Use HTML as a fallback: If the incoming mail only contains mime-parts that
+aren't either text or HTML, Disclaimr will use the text disclaimer per
+default. If you check this option, Disclaimr will instead use the HTML
+disclaimer.</li>
+</ul>
+
+<h2>
+<a id="rules" class="anchor" href="#rules" aria-hidden="true"><span class="octicon octicon-link"></span></a>Rules</h2>
+
+<p>Rules are the basic building blocks of the milter workflow. The requirements
+will be checked and, if no requirement fails, the actions will be carried out
+ in the order they are sorted in the web ui.</p>
+
+<p>The order the rules will be carried out can also be changed using the web ui.</p>
+
+<p>If the additional parameter "Continue after this rule" is checked, additional
+ matching rules, will be carried out after this rule.</p>
+
+<h3>
+<a id="requirements-1" class="anchor" href="#requirements-1" aria-hidden="true"><span class="octicon octicon-link"></span></a>Requirements</h3>
+
+<ul>
+<li>Enabled: Is this requirment enabled? (if disabled, the requirement will be
+skipped)</li>
+<li>Sender-IP address/Netmask: An IP-Address and CIDR-Netmask, which have to
+match the host connecting to the milter</li>
+<li>Sender: A regexp, which has to match the "MAIL FROM"-Envelope</li>
+<li>Recipient: A regexp, which has to match the "RCPT TO"-Envelope</li>
+<li>Header-filter: A regexp, which has to match the complete headers of the
+incoming mail</li>
+<li>Body-filter: A regexp, which has to match the complete body of the incoming
+mail (the body is a text containing all mime-parts of the mail)</li>
+<li>Action: If the different matches succed, will this requirement accept the
+rule or deny (disable) it?</li>
+</ul>
+
+<h3>
+<a id="actions" class="anchor" href="#actions" aria-hidden="true"><span class="octicon octicon-link"></span></a>Actions</h3>
+
+<ul>
+<li>Action: What should be done with the mail body. Currently these actions are
+supported:
+
+<ul>
+<li>Add the disclaimer to the body</li>
+<li>Replace the regexp in the field "Action parameters" with the disclaimer</li>
+<li>Add the disclaimer to the body by adding another MIME-part to it and
+adding the orignal mail as a mime/rfc-822-part (useful for
+encrypted/signed E-Mails)</li>
+</ul>
+</li>
+<li>Mime type: Use this action only for bodies of this mime type</li>
+<li>Action parameters: Additional parameters for the selected action</li>
+<li>Resolve the sender: Use the resolver feature and try to resolve the
+"MAIL FROM"-envelope</li>
+<li>Fail when unable to resolve sender: If the sender can not be resolved,
+don't apply the action</li>
+<li>Disclaimer: Choose the disclaimer to use</li>
+</ul>
+
+<h2>
+<a id="directory-servers" class="anchor" href="#directory-servers" aria-hidden="true"><span class="octicon octicon-link"></span></a>Directory servers</h2>
+
+<ul>
+<li>Base-dn: The LDAP base dn</li>
+<li>Auth-Method: The authentication method to use when connecting to the
+directory server. Currently supported methods are:
+
+<ul>
+<li>None: Do not authenticate at all, use a guest access</li>
+<li>Simple: Use simple authentication</li>
+</ul>
+</li>
+<li>User-DN: User-DN to authenticate with</li>
+<li>Password: Password to authenticate with</li>
+<li>Search-Query: A query to search for when resolving an email-address. The
+tag %s will be replaced with the address while resolving</li>
+<li>URLs: One or more URLs to connect to this directory server. They will be
+used in the order you specify if one cannot be contacted</li>
+</ul>
+
+<h2>
+<a id="resolver-feature" class="anchor" href="#resolver-feature" aria-hidden="true"><span class="octicon octicon-link"></span></a>Resolver feature</h2>
+
+<p>Disclaimr can also be used to generate dynamic footers. For this to work,
+in most cases it has to have access to the contact data of the sender of the
+email. For this purpose, Disclaimr can connect to an LDAP-server and retrieve
+the data based on the sender-emailaddress.</p>
+
+<p>If this succeeds, it can dynamically replace tags inside the disclaimer with
+LDAP fields.</p>
+
+<p>These tags can be used in a disclaimer in any case:</p>
+
+<ul>
+<li>{sender}: the "MAIL FROM"-envelope value</li>
+<li>{recipient}: the "RCPT TO"-envelope value</li>
+<li>{header["key"]}: A mail header with the key "key"</li>
+</ul>
+
+<p>The following tag will be accesible when the resolver succeeds:</p>
+
+<ul>
+<li>{resolver["key"]}: The value of the LDAP-property "key" from the resolver</li>
+</ul>
+
+<h2>
+<a id="supporting-encryption" class="anchor" href="#supporting-encryption" aria-hidden="true"><span class="octicon octicon-link"></span></a>Supporting Encryption</h2>
+
+<p>Encrypted mails (either using PGP or S/MIME) are a problem when you like to
+centrally manage disclaimers or footers. As the text of the mails are
+encrypted, you cannot look into it to replace tags with dynamic footers. When
+ the mails are signed, you also cannot just add text, because that would
+ break the signature.</p>
+
+<p>What you <em>can</em> do, is add another mime part to it. The basic workflow of
+supporting encryption while maintaining a dynamic footer is:</p>
+
+<ul>
+<li>Generate the disclaimer as a separate mime-part</li>
+<li>Convert the original mime-part to a rfc822-part ("an attached message")</li>
+<li>Build a multipart-mail with both parts attached</li>
+</ul>
+
+<p>To identify pgp or mime parts, you can use the following methods:</p>
+
+<h3>
+<a id="detecting-pgp" class="anchor" href="#detecting-pgp" aria-hidden="true"><span class="octicon octicon-link"></span></a>Detecting PGP</h3>
+
+<p>To detect pgp, add a requirement, that matches the body for the following
+regexp:</p>
+
+<pre><code>BEGIN PGP SIGNED MESSAGE|BEGIN PGP MESSAGE
+</code></pre>
+
+<h3>
+<a id="detecting-smime" class="anchor" href="#detecting-smime" aria-hidden="true"><span class="octicon octicon-link"></span></a>Detecting S/MIME</h3>
+
+<p>To detect an S/MIME-mail use a requirement with a header filter and this regexp:</p>
+
+<pre><code>application/pkcs7-signature|application/pkcs7-mime
+</code></pre>
+      </section>
+    </div>
+    <footer>
+      <p>Project maintained by <a href="https://github.com/dploeger">dploeger</a></p>
+      <p>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></p>
+    </footer>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+    
+  </body>
+</html>
