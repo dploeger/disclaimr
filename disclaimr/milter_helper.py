@@ -543,12 +543,12 @@ class MilterHelper(object):
 
             charset = mail.get_content_charset()
 
-            logging.debug("Message charset is: " + charset)
+            logging.debug("Message charset is: %s" % charset)
             logging.debug("Disclaimer charset is: " + disclaimer_charset)
 
             if charset is None or charset == "":
 
-                charset = "us-ascii"
+                charset = disclaimer_charset
 
             if not charset.lower() == disclaimer_charset.lower():
 
