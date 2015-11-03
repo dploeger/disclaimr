@@ -1,5 +1,6 @@
-""" disclaimr - Mail disclaimer server
-"""
+""" disclaimr - Mail disclaimer server """
+__version__ = 'v1.0-rc2'
+
 import argparse
 import socket
 import ldap
@@ -20,7 +21,9 @@ django.setup()
 
 from disclaimr.configuration_helper import build_configuration
 from disclaimr.milter_helper import MilterHelper
-
+from disclaimr.logging_helper import queueFilter
+  
+syslog = logging.getLogger('disclaimr-milter')
 
 class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
 
@@ -101,8 +104,9 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
         :return: A libmilter action
         """
 
-        if not self.helper.enabled:
-
+        if self.helper.rcptmatch:
+            logging.debug("We already have a positive recipient match "
+                          "so we skip all further checks.")
             return lm.CONTINUE
 
         logging.debug("RCPT: %s" % recip)
@@ -127,6 +131,8 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
             return lm.CONTINUE
 
         logging.debug("HEADER: %s: %s" % (key, val))
+
+        syslog.addFilter(queueFilter(cmd_dict["i"]))
 
         self.helper.header(key, val, cmd_dict)
 
@@ -226,6 +232,15 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
 
         logging.debug("Close called. QID: %s" % self._qid)
 
+        # If we still have a queue id on disconnect
+        # something went fu will processing the mail
+        if self._qid:
+            syslog.critical("Mail processing failed -> Check journalctl " \
+                            "and if you found a bug make sure too report it " \
+                            "at https://github.com/dploeger/disclaimr")
+
+        else:
+            syslog.info("Done")
 
 class DisclaimrForkFactory(lm.ForkFactory):
 
@@ -280,7 +295,7 @@ class DisclaimrForkFactory(lm.ForkFactory):
                 emsg = 'An error occured starting the thread for ' + \
                        'connect from: %r: %s' % (addr, e)
 
-                logging.warn(emsg)
+                syslog.warn(emsg)
                 p.transport = None
                 sock.close()
 
@@ -302,15 +317,27 @@ def run_disclaimr_milter():
     # Register signal handler for killing
 
     def signal_handler(num, frame):
+        syslog.info("Stopping disclaimr " +
+                    __version__ +
+                    " listening on " +
+                    options.socket)
+        
         f.close()
         sys.exit(0)
 
-    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler) # needed to terminate the process through systemd
 
     # Run
 
     try:
         f.run()
+
+    except KeyboardInterrupt:
+        
+        # CTRL-C should be handeled like this
+        # since SIGINT will call it anyway
+        
+        logging.debug("Got CTRL-C...")
 
     except Exception, e:
 
@@ -390,7 +417,10 @@ if __name__ == '__main__':
     else:
         logging.basicConfig(level=logging.INFO)
 
-    logging.debug("Starting disclaimr")
+    syslog.info("Starting disclaimr " +
+                __version__ +
+                " listening on "
+                + options.socket)
 
     if options.ignore_cert:
 

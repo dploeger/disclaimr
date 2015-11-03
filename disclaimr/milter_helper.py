@@ -10,6 +10,7 @@ import re
 from disclaimr.query_cache import QueryCache
 from disclaimrwebadmin import models, constants
 
+syslog = logging.getLogger('disclaimr-milter')
 
 class MilterHelper(object):
 
@@ -38,6 +39,8 @@ class MilterHelper(object):
         }
 
         self.enabled = True
+
+        self.rcptmatch = False
 
         self.requirements = []
 
@@ -119,12 +122,19 @@ class MilterHelper(object):
                     lambda x: x != req.id, self.requirements
                 )
 
-        if len(self.requirements) == 0:
+                if len(self.requirements) == 0:
+        
+                    logging.debug("Couldn't match the recipient address in any "
+                                  "requirement. Skipping.")
+        
+                    self.enabled = False
+                    
+            else:
+                logging.debug("Recipient address matches regex.")
+                
+                self.rcptmatch = True
+                self.enabled = True
 
-            logging.debug("Couldn't match the recipient address in any "
-                          "requirement. Skipping.")
-
-            self.enabled = False
 
         self.mail_data["envelope_rcpt"] = recip
 
@@ -266,7 +276,7 @@ class MilterHelper(object):
 
                     continue
 
-                logging.info("Carrying out action %s of rule %s" % (
+                syslog.info("Carrying out action %s of rule %s" % (
                     action.name,
                     rule.name
                 ))
@@ -470,11 +480,10 @@ class MilterHelper(object):
                                                        "text/html")\
                and not action.action == constants.ACTION_ACTION_ADDPART:
 
-                logging.info(
+                syslog.warn(
                     "Content-type %s is currently not supported for actions "
-                    "other than addpart." % (
-                        mail.get_content_type(),
-                    )
+                    "other than addpart." % 
+                        mail.get_content_type()
                 )
 
                 return mail
@@ -534,11 +543,17 @@ class MilterHelper(object):
 
             charset = mail.get_content_charset()
 
+            logging.debug("Message charset is: " + charset)
+            logging.debug("Disclaimer charset is: " + disclaimer_charset)
+
             if charset is None or charset == "":
 
                 charset = "us-ascii"
 
             if not charset.lower() == disclaimer_charset.lower():
+
+                logging.debug("Message and Disclaimer have different charsets...")
+                self.charsetsmatch = False
 
                 if isinstance(disclaimer_text, unicode):
 
@@ -556,6 +571,9 @@ class MilterHelper(object):
                     disclaimer_text = disclaimer_text.decode("utf-8").encode(
                         charset.lower()
                     )
+
+            else:
+                self.charsetsmatch = True
 
             if do_replace:
 
@@ -592,7 +610,7 @@ class MilterHelper(object):
 
                             continue
 
-                        logging.info(
+                        syslog.info(
                             "Connecting to directory server %s" %
                             directory_server.name
                         )
@@ -650,7 +668,7 @@ class MilterHelper(object):
 
                                     # Cannot reach server. Skip.
 
-                                    logging.warn(
+                                    syslog.warn(
                                         "Cannot reach server %s. "
                                         "Skipping." % url
                                     )
@@ -664,7 +682,7 @@ class MilterHelper(object):
 
                                     # Cannot authenticate. Skip.
 
-                                    logging.warn(
+                                    syslog.warn(
                                         "Cannot authenticate to directory "
                                         "server %s with dn %s. "
                                         "Skipping." % (
@@ -689,8 +707,8 @@ class MilterHelper(object):
 
                                     # Cannot reach server. Skip.
 
-                                    logging.warn("Cannot reach server %s. "
-                                                 "Skipping." % url)
+                                    syslog.warn("Cannot reach server %s. "
+                                                "Skipping." % url)
 
                                     continue
 
@@ -702,10 +720,10 @@ class MilterHelper(object):
                                     # guest login without an enabled guest
                                     # login)
 
-                                    logging.warn("Cannot authenticate to "
-                                                 "directory server %s as "
-                                                 "guest or cannot query. "
-                                                 "Skipping." % url)
+                                    syslog.warn("Cannot authenticate to "
+                                                "directory server %s as "
+                                                "guest or cannot query. "
+                                                "Skipping." % url)
 
                                     continue
 
@@ -713,38 +731,35 @@ class MilterHelper(object):
 
                                     if action.resolve_sender_fail:
 
-                                        logging.warn(
+                                        syslog.warn(
                                             "Cannot resolve email %s. "
-                                            "Skipping" % (
-                                                self.mail_data["envelope_from"],
-                                            )
+                                            "Skipping" % 
+                                                self.mail_data["envelope_from"]
                                         )
 
                                         return
 
-                                    logging.info(
-                                        "Cannot resolve email %s" % (
-                                            self.mail_data["envelope_from"],
-                                        )
+                                    syslog.warn( 
+                                        "Cannot resolve email %s" %
+                                            self.mail_data["envelope_from"]
                                     )
 
                                     continue
 
                                 elif len(result) > 1:
 
-                                    logging.warn(
+                                    syslog.warn(
                                         "Multiple results found for "
                                         "email %s. " %
-                                        self.mail_data["envelope_from"]
+                                            self.mail_data["envelope_from"]
                                     )
 
                                     if action.resolve_sender_fail:
 
-                                        logging.warn(
+                                        syslog.warn(
                                             "Cannot reliable resolve email %s. "
-                                            "Skipping" % (
-                                                self.mail_data["envelope_from"],
-                                            )
+                                            "Skipping" %
+                                                self.mail_data["envelope_from"]
                                         )
 
                                         return
@@ -803,7 +818,7 @@ class MilterHelper(object):
 
                         # We didn't reach any directory server (url).
 
-                        logging.warn(
+                        syslog.warn(
                             "Cannot resolve email %s. "
                             "Skipping" % self.mail_data["envelope_from"]
                         )
@@ -815,9 +830,10 @@ class MilterHelper(object):
                 logging.debug("Replacing template text")
 
                 # A template tag like {key}
+                # but not {rt}
 
-                template = re.compile("\{([^}]*)\}")
-
+                template = re.compile("\{((?!rt|\/rt)[^}]*)\}")
+                
                 # A template tag referring to a dictionary like {key["test"]}
 
                 subkey_template = re.compile("^([^\[]*)\[\"([^\"]*)\"\]$")
@@ -859,14 +875,14 @@ class MilterHelper(object):
 
                             # We cannot resolve the key. Fail.
 
-                            logging.warn("Cannot resolve key %s. "
-                                         "Skipping" % key)
+                            syslog.warn("Cannot resolve key %s. "
+                                        "Skipping" % key)
 
                             return
 
                         else:
 
-                            logging.info("Cannot resolve key %s" % key)
+                            syslog.warn("Cannot resolve key %s" % key)
 
                             value = ""
 
@@ -880,21 +896,43 @@ class MilterHelper(object):
 
                             # We cannot resolve the key. Fail.
 
-                            logging.warn("Cannot resolve key %s. "
-                                         "Skipping" % key)
+                            syslog.warn("Cannot resolve key %s. "
+                                        "Skipping" % key)
 
                             return
 
                         else:
 
-                            logging.info("Cannot resolve key %s" % key)
+                            syslog.warn("Cannot resolve key %s" % key)
 
                             value = ""
 
-                    disclaimer_text = disclaimer_text.replace(
-                        "{%s}" % replace_key,
-                        value
-                    )
+                    if len(value) > 0:
+                        
+                        # We have a result so clean up the rtag if present
+                        removetag = re.search("{rt}(.*)({resolver\[\"" + subkey + "\"\]})(.*){\/rt}", disclaimer_text)
+                        
+                        if removetag:
+                            logging.debug("Cleaning tag up...")
+                            replace_key = "rt}" + removetag.groups()[0] + removetag.groups()[1] + removetag.groups()[2] + "{/rt"
+                            value = removetag.groups()[0] + value + removetag.groups()[2]
+
+                        if not self.charsetsmatch:
+                            logging.debug("Reencoding resolver to match message charset...")
+                            value = value.encode(charset)
+
+                        disclaimer_text = disclaimer_text.replace(
+                            "{%s}" % replace_key,
+                            value
+                        )
+                        
+                    else:
+                        
+                        # We have no result so check if we should remove the tag
+                        remove = re.search("(\n)?{rt}.*{resolver\[\"" + subkey + "\"\]}.*{\/rt}(<br \/>)?", disclaimer_text)
+                        if remove:
+                            logging.debug("Removing tag...")
+                            disclaimer_text = disclaimer_text[:remove.start()] + disclaimer_text[remove.end():]
 
             # If the HTML disclaimer should be the same as the text
             # disclaimer, reformat it to make it HTML-usable
@@ -907,7 +945,7 @@ class MilterHelper(object):
             # Carry out the action
 
             logging.debug(
-                "Adding Disclaimer %s to body" % action.disclaimer.name
+                "Adding Disclaimer %s to body (%s)" % (action.disclaimer.name, content_type)
             )
 
             (encoding, new_text) = self.decode_mail(mail)
@@ -943,21 +981,21 @@ class MilterHelper(object):
 
                     disclaimer_part = etree.HTML(disclaimer_text)
 
+                    body = disclaimer_part.xpath("body")[0]
+
                     if len(html_part.xpath("body")) > 0:
 
                         # Add the new part inside the existing body-tag
 
-                        html_part.xpath("body")[0].append(
-                            disclaimer_part.xpath("body")[0].getchildren()[0]
-                        )
+                        for element in body:
+                            html_part.xpath("body")[0].append(element)
 
                     else:
 
                         # No body found. Just add the new part
 
-                        html_part.append(
-                            disclaimer_part.xpath("body")[0].getchildren()[0]
-                        )
+                        for element in body:
+                            html_part.appand(element)
 
                     new_text = etree.tostring(
                         html_part,
@@ -1021,7 +1059,7 @@ class MilterHelper(object):
 
             else:
 
-                logging.error("Invalid action value %d" % action.action)
+                syslog.error("Invalid action value %d" % action.action)
 
                 return
 
