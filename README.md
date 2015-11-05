@@ -28,7 +28,7 @@ It has the following features:
 * [Grappelli](http://grappelliproject.com/)
 * [Python-LDAP](http://www.python-ldap.org/)
 * [lxml](http://lxml.de/)
-* [Django-admin-sortable2](https://github.com/jrief/django-admin-sortable2)
+* [Django-admin-sortable](https://github.com/iambrandontaylor/django-admin-sortable) and [Django-admin-sortable2](https://github.com/jrief/django-admin-sortable2)
 * [mysqldb](https://github.com/farcepest/MySQLdb1) (or another database
   backend for Python. Disclaimr doesn't support Sqlite)
 
@@ -36,10 +36,14 @@ It has the following features:
 
 ### Python packages
 
+Make sure you have these dependancies installed:
+
+* python-devel
+* openldap-devel
+
 Install the requirements of Disclaimr (for example using pip):
 
-    pip install python-libmilter netaddr django django-grappelli python-ldap lxml django-admin-sortable2
-
+    pip install python-libmilter netaddr django django-grappelli python-ldap lxml django-admin-sortable django-admin-sortable2
 You still need to install the python package for the database backend you'd
 like to use. For example, to use MySQL with the mysqlclient API driver, run:
 
@@ -49,9 +53,27 @@ Download the latest Disclaimr release and put it in an accessible path.
 
 ### Database setup
 
-Create a database in your preferred backend and configure it by copying the
-file "db.conf.dist" to "db.conf" inside the settings subdirectory and modify
-it according to your backend.
+Create a database in your preferred backend, e.g. for MariaDB:
+
+1. Secure your installation
+
+	mysql\_secure\_installation
+	
+2. Create the database (e.g. disclaimr)
+
+	CREATE DATABASE disclaimr;
+	
+3. Create a user (e.g. disclaimr) with password (e.g. disclaimr)
+
+	CREATE USER 'disclaimr'@'localhost' IDENTIFIED BY 'disclaimr';
+	
+4. Grant the user access to the database and reload the privilege table
+
+	GRAND ALL PRIVILEGES ON disclaimr.* TO 'disclaimr'@'localhost';
+	FLUSH PRIVILEGES;
+
+And configure it by copying the file "db.conf.dist" to "db.conf" inside the settings
+ subdirectory and modify it according to your backend.
 
 To initialize the database, run 
 
@@ -87,12 +109,18 @@ that has no proper certificate, you'll have to add the "--ignore-cert" option
 
 Run disclaimr.py with --help for more information.
 
+>Pro Tip: You can even run the milter as a (systemd) daemon, look in the Wiki for a example script.
+
 ## Administration
 
 Disclaimr comes with its own web frontend based on Django. You can use the
-Django testserver by running
+Django testserver by running:
 
     python manage.py runserver
+
+You can change the socket to run the (test) server on by appending ip:port (e.g. 0:8000) to the call
+
+	python manage.py runserver 0:8000
 
 It's recommended to use a "real" web server and also use TLS-Encryption
 instead of the testserver. Please see [Django deployment options]
@@ -220,6 +248,11 @@ These tags can be used in a disclaimer in any case:
 The following tag will be accesible when the resolver succeeds:
 
 * {resolver["key"]}: The value of the LDAP-property "key" from the resolver
+
+Since v1.0-rc2 you can even decide what to do if the resolver fails:
+
+* {rt}I get removed if {resolver["key"]} fails{/rt}: If the LDAP-property "key"
+ has no value everything withing {rt} will be removed
 
 ## Supporting Encryption
 

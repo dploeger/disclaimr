@@ -480,7 +480,7 @@ class MilterHelper(object):
                                                        "text/html")\
                and not action.action == constants.ACTION_ACTION_ADDPART:
 
-                syslog.warn(
+                syslog.warning(
                     "Content-type %s is currently not supported for actions "
                     "other than addpart." % 
                         mail.get_content_type()
@@ -544,7 +544,7 @@ class MilterHelper(object):
             charset = mail.get_content_charset()
 
             logging.debug("Message charset is: %s" % charset)
-            logging.debug("Disclaimer charset is: " + disclaimer_charset)
+            logging.debug("Disclaimer charset is: %s" % disclaimer_charset)
 
             if charset is None or charset == "":
 
@@ -668,7 +668,7 @@ class MilterHelper(object):
 
                                     # Cannot reach server. Skip.
 
-                                    syslog.warn(
+                                    syslog.warning(
                                         "Cannot reach server %s. "
                                         "Skipping." % url
                                     )
@@ -682,7 +682,7 @@ class MilterHelper(object):
 
                                     # Cannot authenticate. Skip.
 
-                                    syslog.warn(
+                                    syslog.warning(
                                         "Cannot authenticate to directory "
                                         "server %s with dn %s. "
                                         "Skipping." % (
@@ -707,7 +707,7 @@ class MilterHelper(object):
 
                                     # Cannot reach server. Skip.
 
-                                    syslog.warn("Cannot reach server %s. "
+                                    syslog.warning("Cannot reach server %s. "
                                                 "Skipping." % url)
 
                                     continue
@@ -720,7 +720,7 @@ class MilterHelper(object):
                                     # guest login without an enabled guest
                                     # login)
 
-                                    syslog.warn("Cannot authenticate to "
+                                    syslog.warning("Cannot authenticate to "
                                                 "directory server %s as "
                                                 "guest or cannot query. "
                                                 "Skipping." % url)
@@ -731,7 +731,7 @@ class MilterHelper(object):
 
                                     if action.resolve_sender_fail:
 
-                                        syslog.warn(
+                                        syslog.warning(
                                             "Cannot resolve email %s. "
                                             "Skipping" % 
                                                 self.mail_data["envelope_from"]
@@ -739,7 +739,7 @@ class MilterHelper(object):
 
                                         return
 
-                                    syslog.warn( 
+                                    syslog.warning( 
                                         "Cannot resolve email %s" %
                                             self.mail_data["envelope_from"]
                                     )
@@ -748,7 +748,7 @@ class MilterHelper(object):
 
                                 elif len(result) > 1:
 
-                                    syslog.warn(
+                                    syslog.warning(
                                         "Multiple results found for "
                                         "email %s. " %
                                             self.mail_data["envelope_from"]
@@ -756,7 +756,7 @@ class MilterHelper(object):
 
                                     if action.resolve_sender_fail:
 
-                                        syslog.warn(
+                                        syslog.warning(
                                             "Cannot reliable resolve email %s. "
                                             "Skipping" %
                                                 self.mail_data["envelope_from"]
@@ -818,7 +818,7 @@ class MilterHelper(object):
 
                         # We didn't reach any directory server (url).
 
-                        syslog.warn(
+                        syslog.warning(
                             "Cannot resolve email %s. "
                             "Skipping" % self.mail_data["envelope_from"]
                         )
@@ -875,14 +875,14 @@ class MilterHelper(object):
 
                             # We cannot resolve the key. Fail.
 
-                            syslog.warn("Cannot resolve key %s. "
+                            syslog.warning("Cannot resolve key %s. "
                                         "Skipping" % key)
 
                             return
 
                         else:
 
-                            syslog.warn("Cannot resolve key %s" % key)
+                            syslog.warning("Cannot resolve key %s" % key)
 
                             value = ""
 
@@ -896,14 +896,14 @@ class MilterHelper(object):
 
                             # We cannot resolve the key. Fail.
 
-                            syslog.warn("Cannot resolve key %s. "
+                            syslog.warning("Cannot resolve key %s. "
                                         "Skipping" % key)
 
                             return
 
                         else:
 
-                            syslog.warn("Cannot resolve key %s" % key)
+                            syslog.warning("Cannot resolve key %s" % key)
 
                             value = ""
 
@@ -1090,5 +1090,7 @@ class MilterHelper(object):
             else:
 
                 email.encoders.encode_7or8bit(mail)
+
+            syslog.debug("Helper finished, returning mail")
 
             return mail
