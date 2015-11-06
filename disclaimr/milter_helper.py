@@ -418,13 +418,15 @@ class MilterHelper(object):
 
             encoding = mail["Content-Transfer-Encoding"].lower()
 
+            logging.debug("Pre Content-Transfer-Encoding: %s" % encoding)
+
             if encoding == "quoted-printable":
 
                 mail_text = quopri.decodestring(mail_text)
 
             elif encoding == "base64":
 
-                mail_text = base64.b64decode(mail.get_payload())
+                mail_text = base64.b64decode(mail_text)
 
             else:
 
@@ -1079,6 +1081,8 @@ class MilterHelper(object):
 
                 del(mail["Content-Transfer-Encoding"])
 
+            logging.debug("Encoding %s with Charset %s" % (encoding, charset))
+
             if encoding == "quoted-printable":
 
                 email.encoders.encode_quopri(mail)
@@ -1088,9 +1092,16 @@ class MilterHelper(object):
                 email.encoders.encode_base64(mail)
 
             else:
+                if charset != "utf-8":
+                    logging.debug("Encoding doesnt match charset,"
+                                 " reencoding to comply with RFC 2045")
+                    email.encoders.encode_base64(mail)
+                else:
+                    logging.debug("Encoding matches charset")
+                    email.encoders.encode_7or8bit(mail)
 
-                email.encoders.encode_7or8bit(mail)
+            logging.debug("Post Content-Transfer-Encoding: %s" % mail["Content-Transfer-Encoding"].lower())
 
-            syslog.debug("Helper finished, returning mail")
+            logging.debug("Helper finished, returning mail")
 
             return mail

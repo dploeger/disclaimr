@@ -67,9 +67,12 @@ Create a database in your preferred backend, e.g. for MariaDB:
 
 	CREATE USER 'disclaimr'@'localhost' IDENTIFIED BY 'disclaimr';
 	
-4. Grant the user access to the database and reload the privilege table
+4. Grant the user access to the database
 
 	GRAND ALL PRIVILEGES ON disclaimr.* TO 'disclaimr'@'localhost';
+
+5. Reload the privileges table
+
 	FLUSH PRIVILEGES;
 
 And configure it by copying the file "db.conf.dist" to "db.conf" inside the settings
