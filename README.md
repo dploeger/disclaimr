@@ -112,7 +112,7 @@ that has no proper certificate, you'll have to add the "--ignore-cert" option
 
 Run disclaimr.py with --help for more information.
 
->Pro Tip: You can even run the milter as a (systemd) daemon, look in the Wiki for a example script.
+>Pro Tip: You can even run the milter as a (systemd) daemon, look in the Wiki for requirments and a example script.
 
 ## Administration
 

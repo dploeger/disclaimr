@@ -22,8 +22,17 @@ django.setup()
 from disclaimr.configuration_helper import build_configuration
 from disclaimr.milter_helper import MilterHelper
 from disclaimr.logging_helper import queueFilter
-  
+
 syslog = logging.getLogger('disclaimr-milter')
+
+try:
+    import systemd.daemon
+    HAS_SYSTEMD_PYTHON = True
+except ImportError:
+    syslog.warning("Missing module systemd.daemon, "
+                   "systemd support not available! "
+                   "Please install systemd-python")
+    HAS_SYSTEMD_PYTHON = False
 
 class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
 
@@ -313,6 +322,13 @@ def run_disclaimr_milter():
 
     # Initialize Fork Factory
     f = lm.ForkFactory(options.socket, DisclaimrMilter, opts)
+
+    # Check for systemd support and, if started by systemd,
+    # report that we are ready to accpet connections
+    logging.debug("HAS_SYSTEMD_PYTHON: %s" % HAS_SYSTEMD_PYTHON)
+    if HAS_SYSTEMD_PYTHON and systemd.daemon.booted():
+        logging.debug("Milter started by systemd and ready...")
+        systemd.daemon.notify('READY=1')
 
     # Register signal handler for killing
 

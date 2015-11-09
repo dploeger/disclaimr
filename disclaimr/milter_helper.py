@@ -428,14 +428,11 @@ class MilterHelper(object):
 
                 mail_text = base64.b64decode(mail_text)
 
-            else:
-
-                # 7 or 8 bit
-
-                encoding = "78bit"
-
         else:
 
+            syslog.error("Missing Content-Transfer-Encoding header,"
+                         " this violates RFC!"
+                         " Falling back to 78bit")
             encoding = "78bit"
 
         return encoding, mail_text
@@ -878,7 +875,7 @@ class MilterHelper(object):
                             # We cannot resolve the key. Fail.
 
                             syslog.warning("Cannot resolve key %s. "
-                                        "Skipping" % key)
+                                           "Skipping" % key)
 
                             return
 
@@ -899,7 +896,7 @@ class MilterHelper(object):
                             # We cannot resolve the key. Fail.
 
                             syslog.warning("Cannot resolve key %s. "
-                                        "Skipping" % key)
+                                           "Skipping" % key)
 
                             return
 
@@ -930,8 +927,11 @@ class MilterHelper(object):
                         
                     else:
                         
-                        # We have no result so check if we should remove the tag
-                        remove = re.search("(\n)?{rt}.*{resolver\[\"" + subkey + "\"\]}.*{\/rt}(<br \/>)?", disclaimer_text)
+                        # We have no result so either remove the
+                        # tag or - if not applicable - the resolver
+
+                        remove = re.search("(\n)?{rt}.*{resolver\[\"" + subkey + "\"\]}.*{\/rt}(\r|<br \/>)?|{resolver\[\"" + subkey + "\"\]}", disclaimer_text, re.IGNORECASE)
+                        
                         if remove:
                             logging.debug("Removing tag...")
                             disclaimer_text = disclaimer_text[:remove.start()] + disclaimer_text[remove.end():]
@@ -1091,15 +1091,19 @@ class MilterHelper(object):
 
                 email.encoders.encode_base64(mail)
 
-            else:
-                if charset != "utf-8":
-                    logging.debug("Encoding doesnt match charset,"
-                                 " reencoding to comply with RFC 2045")
+            elif encoding == "7bit" or encoding == "8bit":
+                
+                email.encoders.encode_7or8bit(mail)
+                
+                if not encoding == mail["Content-Transfer-Encoding"].lower():
+                    logging.debug("Message encoding switched from 7 to 8 bit,"
+                                  " reencoding in base64 to comply with RFC 2045")
+                    del(mail["Content-Transfer-Encoding"])
                     email.encoders.encode_base64(mail)
-                else:
-                    logging.debug("Encoding matches charset")
-                    email.encoders.encode_7or8bit(mail)
-
+                
+            else:
+                email.encoders.encode_7or8bit(mail)
+                
             logging.debug("Post Content-Transfer-Encoding: %s" % mail["Content-Transfer-Encoding"].lower())
 
             logging.debug("Helper finished, returning mail")
