@@ -1,5 +1,5 @@
 """ disclaimr - Mail disclaimer server """
-__version__ = 'v1.0-rc2'
+__version__ = 'v1.0-rc3'
 
 import argparse
 import socket
@@ -11,6 +11,8 @@ import signal
 import traceback
 import sys
 import logging
+
+#from multiprocessing import Process as Thread
 
 # Setup Django
 from disclaimr.query_cache import QueryCache
@@ -25,14 +27,14 @@ from disclaimr.logging_helper import queueFilter
 
 syslog = logging.getLogger('disclaimr-milter')
 
-try:
-    import systemd.daemon
-    HAS_SYSTEMD_PYTHON = True
-except ImportError:
-    syslog.warning("Missing module systemd.daemon, "
-                   "systemd support not available! "
-                   "Please install systemd-python")
-    HAS_SYSTEMD_PYTHON = False
+# try:
+#     import systemd.daemon
+#     HAS_SYSTEMD_PYTHON = True
+# except ImportError:
+#     syslog.warning("Missing module systemd.daemon, "
+#                    "systemd support not available! "
+#                    "Please install systemd-python")
+#     HAS_SYSTEMD_PYTHON = False
 
 class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
 
@@ -249,68 +251,129 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
                             "at https://github.com/dploeger/disclaimr")
 
         else:
-            syslog.info("Done")
+            if self.helper.enabled:
+                syslog.info("Done")
+            else:
+                logging.debug("Got disconnect before END-OF-MESSAGE")
 
-class DisclaimrForkFactory(lm.ForkFactory):
+# class DisclaimrForkFactory(lm.ForkFactory):
+#  
+#     def run(self):
+#  
+#         p = self._setupSock()
+#  
+#         cycle_timer = 0
+#  
+#         while True:
+#  
+#             cycle_timer += 1
+#  
+#             if cycle_timer > options.clean_cache:
+#  
+#                 # We have to clear the cache
+#  
+#                 logging.debug("Flushing cache.")
+#  
+#                 cycle_timer = 0
+#                 QueryCache.flush()
+#  
+#             if self._close.isSet():
+#                 break
+#  
+#             try:
+#  
+#                 self.sock.settimeout(30)
+#                 sock, addr = self.sock.accept()
+#  
+#             except socket.timeout:
+#  
+#                 #logging.debug("Accept socket timed out")
+#                 logging.debug("Idle timeout after %s seconds, respawning socket" % self.sock.gettimeout())
+#                 continue
+#  
+#             except socket.error, e:
+#  
+#                 emsg = 'ERROR IN ACCEPT(): %s' % e
+#                 self.log(emsg)
+#                 logging.debug(emsg)
+#                 continue
+#  
+#             #sock.settimeout(self.cSockTimeout)
+#             p.transport = sock
+#  
+#             try:
+# 
+#                 p.start()
+#  
+#             except Exception, e:
+#  
+#                 emsg = 'An error occured starting the thread for ' + \
+#                        'connect from: %r: %s' % (addr, e)
+#  
+#                 syslog.warn(emsg)
+#                 p.transport = None
+#                 sock.close()
 
-    def run(self):
-
-        self._setupSock()
-
-        cycle_timer = 0
-
-        while True:
-
-            cycle_timer += 1
-
-            if cycle_timer > options.clean_cache:
-
-                # We have to clear the cache
-
-                logging.debug("Flushing cache.")
-
-                cycle_timer = 0
-                QueryCache.flush()
-
-            if self._close.isSet():
-                break
-
-            try:
-
-                sock, addr = self.sock.accept()
-
-            except socket.timeout:
-
-                logging.debug("Accept socket timed out")
-                continue
-
-            except socket.error, e:
-
-                emsg = 'ERROR IN ACCEPT(): %s' % e
-                self.log(emsg)
-                logging.debug(emsg)
-                continue
-
-            sock.settimeout(self.cSockTimeout)
-            p = self.protocol(self.opts)
-            p.transport = sock
-
-            try:
-
-                p.start()
-
-            except Exception, e:
-
-                emsg = 'An error occured starting the thread for ' + \
-                       'connect from: %r: %s' % (addr, e)
-
-                syslog.warn(emsg)
-                p.transport = None
-                sock.close()
-
+# def run_disclaimr_milter():
+# 
+#     """ Start the multiforking milter daemon
+#     """
+# 
+#     # Set milter options
+#     opts = \
+#         lm.SMFIF_CHGBODY | \
+#         lm.SMFIF_ADDHDRS | \
+#         lm.SMFIF_CHGHDRS
+# 
+#     # Initialize Factory
+#     f = lm.ForkFactory(options.socket, DisclaimrMilter, opts)
+# 
+#     # Check for systemd support and, if started by systemd,
+#     # report that we are ready to accpet connections
+#     logging.debug("HAS_SYSTEMD_PYTHON: %s" % HAS_SYSTEMD_PYTHON)
+#     if HAS_SYSTEMD_PYTHON and systemd.daemon.booted():
+#         logging.debug("Reporting too systemd that we are ready...")
+#         systemd.daemon.notify('READY=1')
+# 
+#     # Register signal handler for killing
+# 
+#     def signal_handler(num, frame):
+#         syslog.info("Stopping disclaimr " +
+#                     __version__ +
+#                     " listening on " +
+#                     options.socket)
+#         
+#         f.close()
+#         sys.exit(0)
+# 
+#     signal.signal(signal.SIGTERM, signal_handler) # needed to terminate the process through systemd
+# 
+#     # Run
+# 
+#     try:
+#         f.run()
+# 
+#     except KeyboardInterrupt:
+#         
+#         # CTRL-C should be handeled like this
+#         # since SIGINT will call it anyway
+#         
+#         logging.debug("Got CTRL-C...")
+# 
+#     except Exception, e:
+# 
+#         # Exception occured. Stop everything and show it.
+# 
+#         f.close()
+# 
+#         print >> sys.stderr, 'EXCEPTION OCCURED: %s' % e
+# 
+#         traceback.print_tb(sys.exc_traceback)
+# 
+#         sys.exit(3)
 
 def run_disclaimr_milter():
-
+    
     """ Start the multiforking milter daemon
     """
 
@@ -319,52 +382,62 @@ def run_disclaimr_milter():
         lm.SMFIF_CHGBODY | \
         lm.SMFIF_ADDHDRS | \
         lm.SMFIF_CHGHDRS
-
-    # Initialize Fork Factory
+ 
+    # Initialize Factory
     f = lm.ForkFactory(options.socket, DisclaimrMilter, opts)
 
-    # Check for systemd support and, if started by systemd,
-    # report that we are ready to accpet connections
-    logging.debug("HAS_SYSTEMD_PYTHON: %s" % HAS_SYSTEMD_PYTHON)
-    if HAS_SYSTEMD_PYTHON and systemd.daemon.booted():
-        logging.debug("Milter started by systemd and ready...")
-        systemd.daemon.notify('READY=1')
+    # create a pid file
+    pid = str(os.getpid())
+    pf = open('/var/run/disclaimr.pid', 'w')
+    logging.debug("PID: %s written to %s" % (pid, pf.name))
+    pf.write(pid)
+    pf.close()
 
     # Register signal handler for killing
 
     def signal_handler(num, frame):
-        syslog.info("Stopping disclaimr " +
-                    __version__ +
-                    " listening on " +
-                    options.socket)
+        syslog.info("Stopping disclaimr %s listening on %s (pid:%s) " % (__version__, options.socket, pid))
+        
+        # remove the pid file
+        logging.debug("Recieved shutdown, "
+                      "removing pid file %s" % pf.name)
+        os.remove("/var/run/disclaimr.pid")
         
         f.close()
         sys.exit(0)
 
-    signal.signal(signal.SIGTERM, signal_handler) # needed to terminate the process through systemd
+    signal.signal(signal.SIGINT, signal_handler)
+#    signal.signal(signal.SIGTERM, signal_handler)
+
+    syslog.info("Starting disclaimr %s listening on %s (pid:%s)" % (__version__, options.socket, pid))
 
     # Run
-
+    
     try:
+        # Check for systemd support and, if available,
+        # report that we are ready to accpet connections
+#         logging.debug("HAS_SYSTEMD_PYTHON: %s" % HAS_SYSTEMD_PYTHON)
+#         if HAS_SYSTEMD_PYTHON and systemd.daemon.booted():
+#             logging.debug("Reporting too systemd that we are ready...")
+#             systemd.daemon.notify('READY=1')
+
+        # create a pid file
+#         pid = str(os.getpid())
+#         logging.debug("PID: %s" % pid)
+#         pf = open('/var/run/disclaimr.pid', 'w')
+#         pf.write(pid)
+#         pf.close()
+
         f.run()
 
-    except KeyboardInterrupt:
+    except Exception , e:
         
-        # CTRL-C should be handeled like this
-        # since SIGINT will call it anyway
-        
-        logging.debug("Got CTRL-C...")
-
-    except Exception, e:
-
-        # Exception occured. Stop everything and show it.
-
         f.close()
-
-        print >> sys.stderr, 'EXCEPTION OCCURED: %s' % e
-
+        
+        print >> sys.stderr , 'EXCEPTION OCCURED: %s' % e
+        
         traceback.print_tb(sys.exc_traceback)
-
+        
         sys.exit(3)
 
 if __name__ == '__main__':
@@ -429,14 +502,10 @@ if __name__ == '__main__':
     if options.quiet:
         logging.basicConfig(level=logging.ERROR)
     elif options.debug:
-        logging.basicConfig(level=logging.DEBUG)
+        # debug logging should have a timestamp
+        logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(message)s')
     else:
         logging.basicConfig(level=logging.INFO)
-
-    syslog.info("Starting disclaimr " +
-                __version__ +
-                " listening on "
-                + options.socket)
 
     if options.ignore_cert:
 
@@ -448,6 +517,13 @@ if __name__ == '__main__':
 
     configuration = build_configuration()
 
-    # Run Disclaimr
-
-    run_disclaimr_milter()
+    try:
+        if not options.debug:
+            pid = os.fork()
+        else:
+            pid = 0
+    except OSError, e:
+        raise Exception, "%s [%d]" % (e.strerror, e.errno)
+    if (pid == 0):
+        # Run Disclaimr
+        run_disclaimr_milter()
