@@ -12,29 +12,28 @@ import traceback
 import sys
 import logging
 
-#from multiprocessing import Process as Thread
-
 # Setup Django
 from disclaimr.query_cache import QueryCache
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "disclaimrweb.settings")
 import django
+from django.db import connection
 django.setup()
 
 from disclaimr.configuration_helper import build_configuration
 from disclaimr.milter_helper import MilterHelper
 from disclaimr.logging_helper import queueFilter
 
-syslog = logging.getLogger('disclaimr-milter')
+syslog = logging.getLogger('disclaimr')
 
-# try:
-#     import systemd.daemon
-#     HAS_SYSTEMD_PYTHON = True
-# except ImportError:
-#     syslog.warning("Missing module systemd.daemon, "
-#                    "systemd support not available! "
-#                    "Please install systemd-python")
-#     HAS_SYSTEMD_PYTHON = False
+try:
+    import systemd.daemon
+    HAS_SYSTEMD_PYTHON = True
+except ImportError:
+    syslog.warning("Missing module systemd.daemon, "
+                   "systemd support not available! "
+                   "Consider installing systemd-python")
+    HAS_SYSTEMD_PYTHON = False
 
 class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
 
@@ -61,11 +60,19 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
 
         lm.MilterProtocol.__init__(self, opts, protos)
         lm.ForkMixin.__init__(self)
-
+            
         self.helper = MilterHelper(configuration)
 
         logging.debug("Initialising Milter Fork")
 
+        # Test wherever the django database connection is still
+        # usable and if not, close it too spawn a new connection
+        if connection.connection:
+            if not connection.is_usable():
+                logging.debug("Found dead database connection, "
+                              "closing it now...")
+                connection.close()
+            
     @lm.noReply
     def connect(self, hostname, family, ip, port, cmd_dict):
 
@@ -86,6 +93,22 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
         return lm.CONTINUE
 
     @lm.noReply
+    def helo(self , heloname):
+        """ Called when the HELO (or EHLO) has been sent
+
+        :param heloname: The HELO (or EHLO) value
+        :return: A libmilter action
+        """
+
+        if not self.helper.enabled:
+            logging.debug("Ignoring HELO since CONNECT didn't match...")
+            return lm.CONTINUE
+        
+        logging.debug('HELO: %s' % heloname)
+
+        return lm.CONTINUE
+
+    @lm.noReply
     def mailFrom(self, addr, cmd_dict):
 
         """ Called when the MAIL FROM-envelope has been sent
@@ -96,7 +119,7 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
         """
 
         if not self.helper.enabled:
-
+            logging.debug("Ignoring MAIL-FROM since a previous rule didn't match...")
             return lm.CONTINUE
 
         logging.debug("MAILFROM: %s" % addr)
@@ -117,7 +140,7 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
 
         if self.helper.rcptmatch:
             logging.debug("We already have a positive recipient match "
-                          "so we skip all further checks.")
+                          "so we skip all further RCPT checks.")
             return lm.CONTINUE
 
         logging.debug("RCPT: %s" % recip)
@@ -138,7 +161,7 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
         """
 
         if not self.helper.enabled:
-
+            logging.debug("Ignoring HEADER since a previous rule didn't match...")
             return lm.CONTINUE
 
         logging.debug("HEADER: %s: %s" % (key, val))
@@ -159,7 +182,7 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
         """
 
         if not self.helper.enabled:
-
+            logging.debug("Ignoring END-OF-HEADER since a previous rule didn't match...")
             return lm.CONTINUE
 
         self.helper.eoh(cmd_dict)
@@ -177,7 +200,7 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
         """
 
         if not self.helper.enabled:
-
+            logging.debug("Ignoring BODY since a previous rule didn't match...")
             return lm.CONTINUE
 
         logging.debug("BODY: (chunk) %s" % chunk)
@@ -195,7 +218,7 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
         """
 
         if not self.helper.enabled:
-
+            logging.debug("Ignoring END-OF-BODY since a previous rule didn't match...")
             return lm.CONTINUE
 
         logging.debug("ENDOFBODY: Processing actions...")
@@ -246,137 +269,16 @@ class DisclaimrMilter(lm.ForkMixin, lm.MilterProtocol):
         # If we still have a queue id on disconnect
         # something went fu will processing the mail
         if self._qid:
-            syslog.critical("Mail processing failed -> Check journalctl " \
-                            "and if you found a bug make sure too report it " \
-                            "at https://github.com/dploeger/disclaimr")
-
-        else:
-            if self.helper.enabled:
-                syslog.info("Done")
-            else:
-                logging.debug("Got disconnect before END-OF-MESSAGE")
-
-# class DisclaimrForkFactory(lm.ForkFactory):
-#  
-#     def run(self):
-#  
-#         p = self._setupSock()
-#  
-#         cycle_timer = 0
-#  
-#         while True:
-#  
-#             cycle_timer += 1
-#  
-#             if cycle_timer > options.clean_cache:
-#  
-#                 # We have to clear the cache
-#  
-#                 logging.debug("Flushing cache.")
-#  
-#                 cycle_timer = 0
-#                 QueryCache.flush()
-#  
-#             if self._close.isSet():
-#                 break
-#  
-#             try:
-#  
-#                 self.sock.settimeout(30)
-#                 sock, addr = self.sock.accept()
-#  
-#             except socket.timeout:
-#  
-#                 #logging.debug("Accept socket timed out")
-#                 logging.debug("Idle timeout after %s seconds, respawning socket" % self.sock.gettimeout())
-#                 continue
-#  
-#             except socket.error, e:
-#  
-#                 emsg = 'ERROR IN ACCEPT(): %s' % e
-#                 self.log(emsg)
-#                 logging.debug(emsg)
-#                 continue
-#  
-#             #sock.settimeout(self.cSockTimeout)
-#             p.transport = sock
-#  
-#             try:
-# 
-#                 p.start()
-#  
-#             except Exception, e:
-#  
-#                 emsg = 'An error occured starting the thread for ' + \
-#                        'connect from: %r: %s' % (addr, e)
-#  
-#                 syslog.warn(emsg)
-#                 p.transport = None
-#                 sock.close()
-
-# def run_disclaimr_milter():
-# 
-#     """ Start the multiforking milter daemon
-#     """
-# 
-#     # Set milter options
-#     opts = \
-#         lm.SMFIF_CHGBODY | \
-#         lm.SMFIF_ADDHDRS | \
-#         lm.SMFIF_CHGHDRS
-# 
-#     # Initialize Factory
-#     f = lm.ForkFactory(options.socket, DisclaimrMilter, opts)
-# 
-#     # Check for systemd support and, if started by systemd,
-#     # report that we are ready to accpet connections
-#     logging.debug("HAS_SYSTEMD_PYTHON: %s" % HAS_SYSTEMD_PYTHON)
-#     if HAS_SYSTEMD_PYTHON and systemd.daemon.booted():
-#         logging.debug("Reporting too systemd that we are ready...")
-#         systemd.daemon.notify('READY=1')
-# 
-#     # Register signal handler for killing
-# 
-#     def signal_handler(num, frame):
-#         syslog.info("Stopping disclaimr " +
-#                     __version__ +
-#                     " listening on " +
-#                     options.socket)
-#         
-#         f.close()
-#         sys.exit(0)
-# 
-#     signal.signal(signal.SIGTERM, signal_handler) # needed to terminate the process through systemd
-# 
-#     # Run
-# 
-#     try:
-#         f.run()
-# 
-#     except KeyboardInterrupt:
-#         
-#         # CTRL-C should be handeled like this
-#         # since SIGINT will call it anyway
-#         
-#         logging.debug("Got CTRL-C...")
-# 
-#     except Exception, e:
-# 
-#         # Exception occured. Stop everything and show it.
-# 
-#         f.close()
-# 
-#         print >> sys.stderr, 'EXCEPTION OCCURED: %s' % e
-# 
-#         traceback.print_tb(sys.exc_traceback)
-# 
-#         sys.exit(3)
+            syslog.error("Message could not be processed! Traceback follows..."
+                         " If you found a bug make sure too report it at https://github.com/dploeger/disclaimr")
+            
+            traceback.print_tb(sys.exc_traceback)
 
 def run_disclaimr_milter():
     
     """ Start the multiforking milter daemon
     """
-
+    
     # Set milter options
     opts = \
         lm.SMFIF_CHGBODY | \
@@ -386,51 +288,37 @@ def run_disclaimr_milter():
     # Initialize Factory
     f = lm.ForkFactory(options.socket, DisclaimrMilter, opts)
 
-    # create a pid file
-    pid = str(os.getpid())
-    pf = open('/var/run/disclaimr.pid', 'w')
-    logging.debug("PID: %s written to %s" % (pid, pf.name))
-    pf.write(pid)
-    pf.close()
-
     # Register signal handler for killing
 
     def signal_handler(num, frame):
-        syslog.info("Stopping disclaimr %s listening on %s (pid:%s) " % (__version__, options.socket, pid))
         
-        # remove the pid file
-        logging.debug("Recieved shutdown, "
-                      "removing pid file %s" % pf.name)
-        os.remove("/var/run/disclaimr.pid")
+        logging.debug("Recieved signal %s" % num)
+        
+        syslog.info("Stopping disclaimr %s listening on %s" % (__version__, options.socket))
         
         f.close()
         sys.exit(0)
 
     signal.signal(signal.SIGINT, signal_handler)
-#    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
 
-    syslog.info("Starting disclaimr %s listening on %s (pid:%s)" % (__version__, options.socket, pid))
+    syslog.info("Starting disclaimr %s listening on %s" % (__version__, options.socket))
 
     # Run
     
     try:
         # Check for systemd support and, if available,
         # report that we are ready to accpet connections
-#         logging.debug("HAS_SYSTEMD_PYTHON: %s" % HAS_SYSTEMD_PYTHON)
-#         if HAS_SYSTEMD_PYTHON and systemd.daemon.booted():
-#             logging.debug("Reporting too systemd that we are ready...")
-#             systemd.daemon.notify('READY=1')
-
-        # create a pid file
-#         pid = str(os.getpid())
-#         logging.debug("PID: %s" % pid)
-#         pf = open('/var/run/disclaimr.pid', 'w')
-#         pf.write(pid)
-#         pf.close()
+        logging.debug("HAS_SYSTEMD_PYTHON: %s" % HAS_SYSTEMD_PYTHON)
+        if HAS_SYSTEMD_PYTHON and systemd.daemon.booted():
+            logging.debug("Reporting too systemd that we are ready...")
+            systemd.daemon.notify('READY=1')
 
         f.run()
 
     except Exception , e:
+        
+        # Exception occured. Stop everything and show it.
         
         f.close()
         
@@ -483,15 +371,6 @@ if __name__ == '__main__':
              "tls-enabled directory servers"
     )
 
-    parser.add_argument(
-        "-c",
-        "--clean-cache",
-        dest="clean_cache",
-        metavar="CYCLES",
-        help="Clean query cache (remove timed out items) every CYCLES [20000]",
-        default=20000
-    )
-
     options = parser.parse_args()
 
     if options.quiet and options.debug:
@@ -517,13 +396,5 @@ if __name__ == '__main__':
 
     configuration = build_configuration()
 
-    try:
-        if not options.debug:
-            pid = os.fork()
-        else:
-            pid = 0
-    except OSError, e:
-        raise Exception, "%s [%d]" % (e.strerror, e.errno)
-    if (pid == 0):
-        # Run Disclaimr
-        run_disclaimr_milter()
+    # Run Disclaimr
+    run_disclaimr_milter()

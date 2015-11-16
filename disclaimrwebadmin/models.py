@@ -3,7 +3,6 @@ from django.utils.translation import ugettext_lazy as _
 import netaddr
 import constants
 
-
 class Rule(models.Model):
 
     """ A disclaimer rule.

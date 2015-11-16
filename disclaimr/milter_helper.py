@@ -10,7 +10,7 @@ import re
 from disclaimr.query_cache import QueryCache
 from disclaimrwebadmin import models, constants
 
-syslog = logging.getLogger('disclaimr-milter')
+syslog = logging.getLogger('disclaimr')
 
 class MilterHelper(object):
 
@@ -118,11 +118,11 @@ class MilterHelper(object):
 
             if not re.search(req.recipient, recip):
 
-                self.requirements = filter(
+                self.filter = filter(
                     lambda x: x != req.id, self.requirements
                 )
 
-                if len(self.requirements) == 0:
+                if len(self.filter) == 0:
         
                     logging.debug("Couldn't match the recipient address in any "
                                   "requirement. Skipping.")
@@ -134,7 +134,6 @@ class MilterHelper(object):
                 
                 self.rcptmatch = True
                 self.enabled = True
-
 
         self.mail_data["envelope_rcpt"] = recip
 
@@ -276,9 +275,10 @@ class MilterHelper(object):
 
                     continue
 
-                syslog.info("Carrying out action %s of rule %s" % (
+                syslog.info("Adding Disclaimer (Action: %s | Rule: %s | Disclaimer: %s)" % (
                     action.name,
-                    rule.name
+                    rule.name,
+                    action.disclaimer.name,
                 ))
 
                 returned_mail = self.do_action(mail, action)
@@ -332,7 +332,7 @@ class MilterHelper(object):
                 workflow["delete_header"].append(header)
 
         # Remove all headers from mail, so we can safely replace the body. Do
-        #  this by removing everything before the first empty line (as per RFC)
+        # this by removing everything before the first empty line (as per RFC)
 
         new_body = mail.as_string()
 
@@ -430,7 +430,7 @@ class MilterHelper(object):
 
         else:
 
-            syslog.error("Missing Content-Transfer-Encoding header,"
+            syslog.warning("Missing Content-Transfer-Encoding header,"
                          " this violates RFC!"
                          " Falling back to 78bit")
             encoding = "78bit"
@@ -609,7 +609,7 @@ class MilterHelper(object):
 
                             continue
 
-                        syslog.info(
+                        logging.debug(
                             "Connecting to directory server %s" %
                             directory_server.name
                         )
@@ -707,7 +707,7 @@ class MilterHelper(object):
                                     # Cannot reach server. Skip.
 
                                     syslog.warning("Cannot reach server %s. "
-                                                "Skipping." % url)
+                                                   "Skipping." % url)
 
                                     continue
 
@@ -720,9 +720,9 @@ class MilterHelper(object):
                                     # login)
 
                                     syslog.warning("Cannot authenticate to "
-                                                "directory server %s as "
-                                                "guest or cannot query. "
-                                                "Skipping." % url)
+                                                   "directory server %s as "
+                                                   "guest or cannot query. "
+                                                   "Skipping." % url)
 
                                     continue
 
@@ -881,7 +881,7 @@ class MilterHelper(object):
 
                         else:
 
-                            syslog.warning("Cannot resolve key %s" % key)
+                            logging.debug("Cannot resolve '%s' for '%s'" % (subkey, self.mail_data["envelope_from"]))
 
                             value = ""
 
@@ -902,7 +902,7 @@ class MilterHelper(object):
 
                         else:
 
-                            syslog.warning("Cannot resolve key %s" % key)
+                            logging.debug("Cannot resolve '%s' for '%s'" % (subkey, self.mail_data["envelope_from"]))
 
                             value = ""
 

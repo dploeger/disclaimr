@@ -14,7 +14,7 @@ class queueFilter(logging.Filter):
 
 # lets be nice and log our usual stuff like info and
 # warn to syslogs LOG_MAIL facility instead of stdout    
-syslog = logging.getLogger('disclaimr-milter')
+syslog = logging.getLogger('disclaimr')
 syslog.propagate = False # This will disable sending duplicates to stdout
 syslog.addFilter(queueFilter())
 logger = logging.StreamHandler()
