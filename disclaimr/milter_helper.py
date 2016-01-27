@@ -364,8 +364,11 @@ class MilterHelper(object):
 
         new_body = new_body[strip_place::]
 
-        # Replace the body with the modified one
+        if mail.is_multipart():
+            logging.debug("Stripping tailing line feeds (if any) from multi-part payload")
+            new_body = new_body.rstrip()
 
+        # Replace the body with the modified one
         workflow["repl_body"] = new_body
 
         return workflow
@@ -433,6 +436,7 @@ class MilterHelper(object):
             syslog.warning("Missing Content-Transfer-Encoding header,"
                          " this violates RFC!"
                          " Falling back to 78bit")
+            
             encoding = "78bit"
 
         return encoding, mail_text
@@ -1090,19 +1094,10 @@ class MilterHelper(object):
             elif encoding == "base64":
 
                 email.encoders.encode_base64(mail)
-
-            elif encoding == "7bit" or encoding == "8bit":
-                
-                email.encoders.encode_7or8bit(mail)
-                
-                if not encoding == mail["Content-Transfer-Encoding"].lower():
-                    logging.debug("Message encoding switched from 7 to 8 bit,"
-                                  " reencoding in base64 to comply with RFC 2045")
-                    del(mail["Content-Transfer-Encoding"])
-                    email.encoders.encode_base64(mail)
                 
             else:
-                email.encoders.encode_7or8bit(mail)
+                
+                mail.add_header("Content-Transfer-Encoding", encoding)
                 
             logging.debug("Post Content-Transfer-Encoding: %s" % mail["Content-Transfer-Encoding"].lower())
 
