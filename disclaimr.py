@@ -1,5 +1,5 @@
 """ disclaimr - Mail disclaimer server """
-__version__ = 'v1.0-rc3'
+__version__ = 'v1.0-rc4'
 
 import argparse
 import socket
