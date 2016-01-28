@@ -69,7 +69,7 @@ Create a database in your preferred backend, e.g. for MariaDB:
 	
 4. Grant the user access to the database
 
-	GRAND ALL PRIVILEGES ON disclaimr.* TO 'disclaimr'@'localhost';
+	GRANT ALL PRIVILEGES ON disclaimr.* TO 'disclaimr'@'localhost';
 
 5. Reload the privileges table
 
@@ -255,7 +255,7 @@ The following tag will be accesible when the resolver succeeds:
 Since v1.0-rc2 you can even decide what to do if the resolver fails:
 
 * {rt}I get removed if {resolver["key"]} fails{/rt}: If the LDAP-property "key"
- has no value everything withing {rt} will be removed
+ has no value everything (including the surrounding tags) will be removed
 
 ## Supporting Encryption
 

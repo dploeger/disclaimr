@@ -1,8 +1,7 @@
-from django.conf.urls import patterns, include, url
+from django.conf.urls import include, url
 from django.contrib import admin
 
-urlpatterns = patterns(
-    '',
-    (r'^grappelli/', include('grappelli.urls')),
-    url(r'', include(admin.site.urls)),
-)
+urlpatterns = [
+    url(r'^grappelli/', include('grappelli.urls')),
+    url(r'', include(admin.site.urls))
+]

@@ -29,7 +29,7 @@ INSTALLED_APPS = (
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'disclaimrwebadmin',
-    'adminsortable'
+    'adminsortable2'
 )
 
 MIDDLEWARE_CLASSES = (
