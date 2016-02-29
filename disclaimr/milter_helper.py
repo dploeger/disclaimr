@@ -913,7 +913,7 @@ class MilterHelper(object):
                     if len(value) > 0:
                         
                         # We have a result so clean up the rtag if present
-                        removetag = re.search("{rt}(.*)({resolver\[\"" + subkey + "\"\]})(.*){\/rt}", disclaimer_text)
+                        removetag = re.search("{rt}(.*)({resolver\[\"" + subkey + "\"\]})(.*){\/rt}", disclaimer_text, re.IGNORECASE)
                         
                         if removetag:
                             logging.debug("Cleaning tag up...")
