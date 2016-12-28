@@ -34,12 +34,21 @@ It has the following features:
 
 ## Installation
 
-### Python packages
+### System packages
 
-Make sure you have these dependancies installed:
+Make sure you have these dependencies installed:
 
+* python
+* pip
 * python-devel
 * openldap-devel
+
+For Ubuntu this would be the following packages:
+
+    python python-pip libsasl2-dev libmysqlclient-dev libldap2-dev python-dev
+
+### Python packages
+
 
 Install the requirements of Disclaimr (for example using pip):
 
